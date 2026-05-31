@@ -95,7 +95,7 @@ export function AiAssistantPanel({
 
       {/* Drawer */}
       <div
-        className={`fixed right-0 top-0 z-50 flex h-screen w-full flex-col bg-white shadow-2xl transition-transform duration-200 sm:w-[700px] lg:w-[780px] ${
+        className={`fixed right-0 top-0 z-50 flex h-screen w-full flex-col bg-white shadow-2xl transition-transform duration-200 sm:w-[820px] lg:w-[960px] ${
           visible ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ borderLeft: '1px solid #e8ede5' }}

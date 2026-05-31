@@ -1,17 +1,26 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Loader2, Sparkles, X } from 'lucide-react'
-import { useState } from 'react'
+import { Loader2, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { getAiSettings, refinePrompt } from '@/api/ai'
 import { queryKeys } from '@/api/query-keys'
 import { getErrorMessage } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { AiModelConfig, type ModelConfig } from './ai-model-config'
+import { MarkdownContent } from './markdown-content'
 
 type RefineDialogProps = {
   content: string
   onApply: (refined: string) => void
   onClose: () => void
+}
+
+const DEFAULT_CONFIG: ModelConfig = {
+  model: 'gemini-3.5-flash',
+  temperature: 0.4,
+  thinkingEnabled: true,
+  thinkingBudget: null,
+  thinkingLevel: 'high',
 }
 
 export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
@@ -20,15 +29,23 @@ export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
     queryFn: getAiSettings,
   })
 
-  const [config, setConfig] = useState<ModelConfig>({
-    model: settingsQuery.data?.model ?? 'gemini-2.5-flash',
-    temperature: settingsQuery.data?.temperature ?? 0.7,
-    thinkingEnabled: settingsQuery.data?.thinkingEnabled ?? false,
-    thinkingBudget: settingsQuery.data?.thinkingBudget ?? null,
-    thinkingLevel: settingsQuery.data?.thinkingLevel ?? null,
-  })
-
+  const [config, setConfig] = useState<ModelConfig>(DEFAULT_CONFIG)
   const [preview, setPreview] = useState<string | null>(null)
+
+  // Sync settings once when they load (same pattern as AiAssistantPanel)
+  const applied = useRef(false)
+  useEffect(() => {
+    if (settingsQuery.data && !applied.current) {
+      applied.current = true
+      setConfig({
+        model: settingsQuery.data.model,
+        temperature: settingsQuery.data.temperature,
+        thinkingEnabled: settingsQuery.data.thinkingEnabled,
+        thinkingBudget: settingsQuery.data.thinkingBudget ?? null,
+        thinkingLevel: settingsQuery.data.thinkingLevel ?? null,
+      })
+    }
+  }, [settingsQuery.data])
 
   const refineMutation = useMutation({
     mutationFn: () =>
@@ -37,18 +54,16 @@ export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
         model: config.model,
         temperature: config.temperature,
         thinkingMode: config.thinkingEnabled
-          ? config.thinkingBudget != null
-            ? 'budget'
-            : config.thinkingLevel != null
-              ? 'level'
-              : 'none'
+          ? config.thinkingBudget != null ? 'budget'
+          : config.thinkingLevel != null ? 'level'
+          : 'none'
           : 'none',
         thinkingBudget: config.thinkingEnabled ? config.thinkingBudget : null,
         thinkingLevel: config.thinkingEnabled ? config.thinkingLevel : null,
       }),
     onSuccess: (result) => {
       setPreview(result.content)
-      toast.success(`Prompt refinado. ${result.promptTokens} tokens de entrada, ${result.candidateTokens} gerados.`)
+      toast.success(`Refinado — ${result.promptTokens} tokens entrada, ${result.candidateTokens} gerados.`)
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
@@ -61,70 +76,93 @@ export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-2xl flex-col gap-4 rounded-xl border border-[#d9dfd5] bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16">
+      <div className="flex w-full max-w-3xl flex-col gap-5 rounded-xl border border-[#d9dfd5] bg-white p-6 shadow-xl">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[#254632]" />
-            <h2 className="text-base font-semibold text-[#172126]">Refinar com Gemini</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef2eb]">
+              <Sparkles className="h-4 w-4 text-[#254632]" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-[#172126]">Refinar com Gemini</h2>
+              <p className="text-xs text-[#9aaf9e]">O prompt atual sera otimizado pela IA</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-[#66746b] hover:bg-[#eef2eb] hover:text-[#172126]"
+            className="rounded-lg p-1.5 text-[#66746b] hover:bg-[#eef2eb] hover:text-[#172126]"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <AiModelConfig value={config} onChange={setConfig} compact />
+        {/* Model config */}
+        <div className="rounded-lg border border-[#e8ede5] bg-[#f7f8f6] p-4">
+          <AiModelConfig value={config} onChange={setConfig} compact />
+        </div>
 
-        {preview ? (
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-[#66746b]">
-              Preview do prompt refinado
-            </div>
-            <div className="max-h-64 overflow-y-auto rounded-md border border-[#d9dfd5] bg-[#f8faf7] p-3">
-              <pre className="whitespace-pre-wrap text-sm text-[#172126]">{preview}</pre>
+        {/* Current content preview (before refine) */}
+        {!preview ? (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#9aaf9e]">
+              Conteudo atual · {content.length} caracteres
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-[#e8ede5] bg-white p-4">
+              <pre className="whitespace-pre-wrap text-xs leading-relaxed text-[#66746b]">
+                {content.length > 600 ? content.slice(0, 600) + '\n…' : content}
+              </pre>
             </div>
           </div>
         ) : (
-          <div className="rounded-md border border-[#d9dfd5] bg-[#f8faf7] p-3">
-            <div className="text-xs font-medium uppercase tracking-wide text-[#66746b]">
-              Conteudo atual ({content.length} caracteres)
+          /* Refined result */
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-wide text-[#254632]">
+                Resultado refinado
+              </p>
+              <button
+                onClick={() => setPreview(null)}
+                className="flex items-center gap-1 text-xs text-[#66746b] hover:text-[#172126]"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Tentar novamente
+              </button>
             </div>
-            <div className="mt-1 max-h-32 overflow-y-auto text-sm text-[#172126]">
-              <pre className="whitespace-pre-wrap">{content.slice(0, 500)}{content.length > 500 ? '...' : ''}</pre>
+            <div className="max-h-[55vh] overflow-y-auto rounded-lg border border-[#c7dfc7] bg-white p-4">
+              <MarkdownContent content={preview} />
             </div>
           </div>
         )}
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          {!preview ? (
-            <Button
-              type="button"
-              onClick={() => refineMutation.mutate()}
-              disabled={refineMutation.isPending || !content.trim()}
-            >
-              {refineMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Refinar
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-[#b0bcb4]">
+            Revise antes de aplicar. Mencoes @arquivo serao revalidadas.
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancelar
             </Button>
-          ) : (
-            <>
-              <Button type="button" variant="secondary" onClick={() => setPreview(null)}>
-                Tentar novamente
+            {!preview ? (
+              <Button
+                type="button"
+                onClick={() => refineMutation.mutate()}
+                disabled={refineMutation.isPending || !content.trim()}
+              >
+                {refineMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {refineMutation.isPending ? 'Refinando...' : 'Refinar'}
               </Button>
+            ) : (
               <Button type="button" onClick={handleApply}>
-                Aplicar
+                Aplicar no editor
               </Button>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
