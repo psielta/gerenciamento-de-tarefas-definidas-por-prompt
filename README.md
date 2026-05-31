@@ -166,6 +166,11 @@ cd frontend
 npm audit --audit-level=moderate
 ```
 
+## Tarefas Futuras
+
+- Implementar uma timeline operacional para cada prompt, permitindo acompanhar o estado atual da tarefa associada, eventos relevantes, mudancas de status e historico de execucao do fluxo.
+- Evoluir o header da aplicacao para exibir informacoes dos agentes Claude e Codex, com destaque para disponibilidade, contexto operacional e limites de uso atuais.
+
 ## Decisoes de Produto Importantes
 
 - A listagem principal do workspace mostra apenas prompts pai.
