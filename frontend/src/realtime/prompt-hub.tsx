@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hubUrl } from '@/env'
 import { queryKeys } from '@/api/query-keys'
-import { linkedDocumentSchema, promptSchema, taskSummarySchema } from '@/api/schemas'
+import { agentUsageSchema, linkedDocumentSchema, promptSchema, taskSummarySchema } from '@/api/schemas'
 
 type PromptHubContextValue = {
   connected: boolean
@@ -114,6 +114,11 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.workflow.detail(summary.promptId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.prompts.all })
+    })
+
+    connection.on('AgentUsageUpdated', (payload: unknown) => {
+      const usage = agentUsageSchema.parse(payload)
+      queryClient.setQueryData(queryKeys.agentUsage.current(), usage)
     })
 
     connection.onreconnecting(() => setConnected(false))

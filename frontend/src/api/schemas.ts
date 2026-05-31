@@ -174,6 +174,50 @@ export type WorkflowActor = z.infer<typeof workflowActorSchema>
 export type PromptWorkflowStatus = z.infer<typeof promptWorkflowStatusSchema>
 export type WorkflowEventType = z.infer<typeof workflowEventTypeSchema>
 
+export const agentUsageStatusSchema = z.enum([
+  'Ok',
+  'NoToken',
+  'Unauthorized',
+  'RateLimited',
+  'HttpError',
+  'Timeout',
+  'NetworkError',
+  'NoData',
+  'Disabled',
+  'Unavailable',
+])
+
+export const agentUsageWindowSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  usedPercent: z.number(),
+  resetsAtUtc: z.string().nullable(),
+  windowMinutes: z.number().nullable(),
+  estimated: z.boolean(),
+  usedTokens: z.number().nullable(),
+  limitTokens: z.number().nullable(),
+})
+
+export const agentUsageInfoSchema = z.object({
+  agent: z.string(),
+  status: agentUsageStatusSchema,
+  httpStatusCode: z.number().nullable(),
+  statusDetail: z.string().nullable(),
+  plan: z.string().nullable(),
+  windows: z.array(agentUsageWindowSchema),
+})
+
+export const agentUsageSchema = z.object({
+  capturedAtUtc: z.string(),
+  claude: agentUsageInfoSchema,
+  codex: agentUsageInfoSchema,
+})
+
+export type AgentUsageStatus = z.infer<typeof agentUsageStatusSchema>
+export type AgentUsageWindow = z.infer<typeof agentUsageWindowSchema>
+export type AgentUsageInfo = z.infer<typeof agentUsageInfoSchema>
+export type AgentUsage = z.infer<typeof agentUsageSchema>
+
 export const workflowPhaseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),

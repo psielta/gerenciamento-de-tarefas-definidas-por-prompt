@@ -19,6 +19,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Pausa, retomada, atualizacao manual e remocao de planos vinculados.
 - Renderizacao de Markdown versionado no navegador com historico navegavel.
 - Templates de prompts para fluxo de revisao e implementacao de planos.
+- Indicadores no header para limites atuais de Claude Code e Codex, lendo as fontes locais dos agentes e sincronizando atualizacoes via SignalR.
 - API REST documentada com OpenAPI/Scalar.
 - Testes unitarios, testes de integracao com PostgreSQL em container e testes de frontend com Vitest.
 
@@ -33,6 +34,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Entity Framework Core 10 com PostgreSQL via Npgsql.
 - Newtonsoft.Json integrado ao ASP.NET Core.
 - SignalR para eventos em tempo real.
+- Leitura local de uso dos agentes: Claude via OAuth da instalacao local e API de uso da Anthropic; Codex via snapshots `rate_limits` dos JSONL em `~/.codex/sessions`.
 - OpenAPI e Scalar para exploracao da API.
 - xUnit, FluentAssertions, Testcontainers e `Microsoft.AspNetCore.Mvc.Testing` para testes.
 
@@ -177,7 +179,6 @@ npm audit --audit-level=moderate
 
 ## Tarefas Futuras
 
-- Evoluir o header da aplicacao para exibir informacoes dos agentes Claude e Codex, com destaque para disponibilidade, contexto operacional e limites de uso atuais.
 - Adicionar visualizacao de diferencas entre versoes de prompts e entre versoes de planos Markdown vinculados, permitindo revisar exatamente o que mudou no prompt ou o que o Claude alterou no plano.
 - Permitir salvar uma copia do Markdown de um plano vinculado em um diretorio definido pelo usuario, preservando historico local fora do arquivo monitorado original.
 - Implementar integracao com Gemini para apoiar refinamento de prompts e uso de IA em pontos estrategicos do fluxo, como sugestoes de melhoria, organizacao de contexto e apoio a revisao.

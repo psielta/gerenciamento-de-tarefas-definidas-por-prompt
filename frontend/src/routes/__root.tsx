@@ -1,5 +1,6 @@
 import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
-import { Code2, FolderKanban } from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
+import { UsageIndicator } from '@/features/agent-usage/usage-indicator'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -29,10 +30,7 @@ function RootLayout() {
               Diretórios
             </Link>
           </nav>
-          <div className="flex items-center gap-2 rounded-md border border-[#d9dfd5] px-2.5 py-1.5 text-xs text-[#66746b]">
-            <Code2 className="h-3.5 w-3.5" />
-            Codex e Claude Code
-          </div>
+          <UsageIndicator />
         </div>
       </header>
       <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6">

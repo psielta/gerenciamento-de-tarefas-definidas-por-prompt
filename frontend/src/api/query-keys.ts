@@ -52,4 +52,7 @@ export const queryKeys = {
     detail: (promptId: string) => ['workflow', 'detail', promptId] as const,
     template: () => ['workflow', 'template'] as const,
   },
+  agentUsage: {
+    current: () => ['agent-usage', 'current'] as const,
+  },
 }

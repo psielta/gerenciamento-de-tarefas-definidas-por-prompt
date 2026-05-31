@@ -25,7 +25,8 @@ public sealed class PromptTasksApiFactory : WebApplicationFactory<Program>, IAsy
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString(),
-                ["Cors:AllowedOrigins:0"] = "http://localhost:5173"
+                ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
+                ["AgentUsage:Enabled"] = "false"
             });
         });
         builder.ConfigureServices(services =>
