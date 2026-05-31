@@ -24,7 +24,7 @@ export function AiSessionList({
   const queryClient = useQueryClient()
 
   const sessionsQuery = useQuery({
-    queryKey: queryKeys.ai.sessions(promptId),
+    queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId),
     queryFn: () => listChatSessions({ promptId, workingDirectoryId }),
   })
 
@@ -39,7 +39,7 @@ export function AiSessionList({
   const deleteSessionMutation = useMutation({
     mutationFn: (id: string) => deleteChatSession(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId) })
       toast.success('Sessao removida.')
     },
     onError: (err) => toast.error(getErrorMessage(err)),

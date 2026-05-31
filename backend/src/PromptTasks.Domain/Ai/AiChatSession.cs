@@ -13,6 +13,7 @@ public sealed class AiChatSession : AuditableEntity
     public int? ThinkingBudget { get; set; }
     public string? ThinkingLevel { get; set; }
     public string? GeminiCacheName { get; set; }
+    public string? CacheSystemInstructionHash { get; set; }
     public DateTimeOffset? CacheExpiresAt { get; set; }
     public int CachedThroughSequence { get; set; }
     public ICollection<AiChatMessage> Messages { get; set; } = new List<AiChatMessage>();

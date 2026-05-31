@@ -34,6 +34,7 @@ public sealed class CreateWorkingDirectoryHandler(
             Name = request.Name.Trim(),
             AbsolutePath = path.CanonicalPath,
             RespectGitignore = request.RespectGitignore,
+            EnableAiContext = request.EnableAiContext,
             OwnerId = currentUser.UserId
         };
 

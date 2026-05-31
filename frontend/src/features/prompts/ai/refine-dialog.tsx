@@ -11,6 +11,7 @@ import { MarkdownContent } from './markdown-content'
 
 type RefineDialogProps = {
   content: string
+  workingDirectoryId?: string
   onApply: (refined: string) => void
   onClose: () => void
 }
@@ -23,7 +24,7 @@ const DEFAULT_CONFIG: ModelConfig = {
   thinkingLevel: 'high',
 }
 
-export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
+export function RefineDialog({ content, workingDirectoryId, onApply, onClose }: RefineDialogProps) {
   const settingsQuery = useQuery({
     queryKey: queryKeys.ai.settings(),
     queryFn: getAiSettings,
@@ -60,6 +61,7 @@ export function RefineDialog({ content, onApply, onClose }: RefineDialogProps) {
           : 'none',
         thinkingBudget: config.thinkingEnabled ? config.thinkingBudget : null,
         thinkingLevel: config.thinkingEnabled ? config.thinkingLevel : null,
+        workingDirectoryId,
       }),
     onSuccess: (result) => {
       setPreview(result.content)

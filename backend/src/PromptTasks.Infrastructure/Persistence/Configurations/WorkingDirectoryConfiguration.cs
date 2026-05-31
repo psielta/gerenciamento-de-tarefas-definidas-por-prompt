@@ -13,6 +13,7 @@ public sealed class WorkingDirectoryConfiguration : IEntityTypeConfiguration<Wor
         builder.Property(directory => directory.Id).ValueGeneratedNever();
         builder.Property(directory => directory.Name).HasMaxLength(160).IsRequired();
         builder.Property(directory => directory.AbsolutePath).HasMaxLength(1024).IsRequired();
+        builder.Property(directory => directory.EnableAiContext).HasDefaultValue(false).IsRequired();
         builder.Property(directory => directory.CreatedAtUtc).IsRequired();
         builder.Property(directory => directory.UpdatedAtUtc).IsRequired();
 

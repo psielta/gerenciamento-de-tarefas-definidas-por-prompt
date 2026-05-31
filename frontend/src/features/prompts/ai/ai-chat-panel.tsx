@@ -82,10 +82,10 @@ export function AiChatPanel({
         thinkingEnabled: modelConfig.thinkingEnabled,
         thinkingBudget: modelConfig.thinkingBudget,
         thinkingLevel: modelConfig.thinkingLevel,
-      }),
+    }),
     onSuccess: (session) => {
       onSessionCreated(session)
-      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId) })
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
@@ -94,7 +94,7 @@ export function AiChatPanel({
     mutationFn: () => deleteChatSession(activeSession!.id),
     onSuccess: () => {
       onSessionDeleted()
-      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId) })
       toast.success('Sessao removida.')
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -305,4 +305,3 @@ function ChatMessage({ message }: { message: ChatStreamMessage }) {
     </div>
   )
 }
-

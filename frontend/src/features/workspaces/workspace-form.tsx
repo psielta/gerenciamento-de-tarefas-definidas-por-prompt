@@ -16,6 +16,7 @@ const workspaceFormSchema = z.object({
   name: z.string().trim().min(2, 'Informe um nome com pelo menos 2 caracteres.'),
   absolutePath: z.string().trim().min(3, 'Informe o caminho absoluto do diretorio.'),
   respectGitignore: z.boolean(),
+  enableAiContext: z.boolean(),
 })
 
 type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>
@@ -30,13 +31,14 @@ export function WorkspaceForm() {
       name: '',
       absolutePath: '',
       respectGitignore: true,
+      enableAiContext: false,
     },
   })
 
   const createMutation = useMutation({
     mutationFn: createWorkingDirectory,
     onSuccess: async () => {
-      form.reset({ name: '', absolutePath: '', respectGitignore: true })
+      form.reset({ name: '', absolutePath: '', respectGitignore: true, enableAiContext: false })
       setPathFeedback(null)
       await queryClient.invalidateQueries({ queryKey: queryKeys.workingDirectories.all })
       toast.success('Diretorio de trabalho criado.')
@@ -89,6 +91,11 @@ export function WorkspaceForm() {
       <label className="flex items-center gap-2 text-sm text-[#425048]">
         <input type="checkbox" className="h-4 w-4" {...form.register('respectGitignore')} />
         Respeitar .gitignore ao buscar arquivos
+      </label>
+
+      <label className="flex items-center gap-2 text-sm text-[#425048]">
+        <input type="checkbox" className="h-4 w-4" {...form.register('enableAiContext')} />
+        Injetar README.md, CLAUDE.md e AGENT.md no contexto da IA
       </label>
 
       <Button type="submit" disabled={createMutation.isPending}>

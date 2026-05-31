@@ -88,6 +88,7 @@ public sealed class WorkspaceFileServiceTests : IDisposable
     }
 
     [Fact]
+    [Trait("Requires", "SymlinkPrivilege")]
     public async Task ResolveRelativePath_rejects_symlink_escape_when_supported()
     {
         var outside = Path.Combine(Path.GetTempPath(), $"prompttasks-outside-{Guid.NewGuid():N}");
@@ -102,13 +103,84 @@ public sealed class WorkspaceFileServiceTests : IDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             Directory.Delete(outside, recursive: true);
-            return;
+            throw Xunit.Sdk.SkipException.ForSkip("This platform or user token cannot create symbolic links.");
         }
 
         try
         {
             var act = () => _service.ResolveRelativePathAsync(_root, "escape/secret.txt", CancellationToken.None);
             await act.Should().ThrowAsync<PathTraversalException>();
+        }
+        finally
+        {
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReadWorkspaceContext_reads_known_markdown_files_and_ignores_missing()
+    {
+        File.WriteAllText(Path.Combine(_root, "README.md"), "Readme rules");
+        File.WriteAllText(Path.Combine(_root, "AGENT.md"), "Agent rules");
+
+        var result = await _service.ReadWorkspaceContextAsync(_root, CancellationToken.None);
+
+        result.Should().Contain("## Contexto do workspace");
+        result.Should().Contain("### README.md");
+        result.Should().Contain("Readme rules");
+        result.Should().Contain("### AGENT.md");
+        result.Should().Contain("Agent rules");
+        result.Should().NotContain("### CLAUDE.md");
+    }
+
+    [Fact]
+    public async Task ReadWorkspaceContext_returns_null_when_no_context_files_exist()
+    {
+        var result = await _service.ReadWorkspaceContextAsync(_root, CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ReadWorkspaceContext_skips_files_over_size_limit()
+    {
+        File.WriteAllText(Path.Combine(_root, "README.md"), new string('a', 65 * 1024));
+        File.WriteAllText(Path.Combine(_root, "CLAUDE.md"), "Claude rules");
+
+        var result = await _service.ReadWorkspaceContextAsync(_root, CancellationToken.None);
+
+        result.Should().Contain("Claude rules");
+        result.Should().NotContain("### README.md");
+    }
+
+    [Fact]
+    [Trait("Requires", "SymlinkPrivilege")]
+    public async Task ReadWorkspaceContext_skips_symlink_escape_when_supported()
+    {
+        File.WriteAllText(Path.Combine(_root, "README.md"), "Safe context");
+        var outside = Path.Combine(Path.GetTempPath(), $"prompttasks-outside-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outside);
+        var outsideFile = Path.Combine(outside, "CLAUDE.md");
+        File.WriteAllText(outsideFile, "secret context");
+        var link = Path.Combine(_root, "CLAUDE.md");
+
+        try
+        {
+            File.CreateSymbolicLink(link, outsideFile);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Directory.Delete(outside, recursive: true);
+            throw Xunit.Sdk.SkipException.ForSkip("This platform or user token cannot create symbolic links.");
+        }
+
+        try
+        {
+            var result = await _service.ReadWorkspaceContextAsync(_root, CancellationToken.None);
+
+            result.Should().Contain("Safe context");
+            result.Should().NotContain("secret context");
+            result.Should().NotContain("### CLAUDE.md");
         }
         finally
         {

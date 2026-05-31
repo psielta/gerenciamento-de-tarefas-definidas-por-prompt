@@ -169,6 +169,7 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
       {showRefineDialog ? (
         <RefineDialog
           content={content}
+          workingDirectoryId={workingDirectoryId}
           onApply={(refined) => {
             form.setValue('content', refined, { shouldDirty: true, shouldValidate: true })
             setEditorMentions({ promptId, mentions: [] })

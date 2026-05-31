@@ -292,6 +292,9 @@ public sealed class CreatePromptHandlerTests
         public Task<ValidatedPathResult> ValidatePathAsync(string absolutePath, CancellationToken cancellationToken) =>
             Task.FromResult(ValidatedPathResult.Valid(absolutePath));
 
+        public Task<string?> ReadWorkspaceContextAsync(string rootAbsolutePath, CancellationToken cancellationToken) =>
+            Task.FromResult<string?>(null);
+
         public Task<IReadOnlyList<FileSearchResultDto>> SearchAsync(
             Guid workingDirectoryId,
             string rootAbsolutePath,

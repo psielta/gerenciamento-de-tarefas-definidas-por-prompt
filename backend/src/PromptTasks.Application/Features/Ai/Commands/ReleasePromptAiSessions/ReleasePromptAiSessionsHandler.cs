@@ -18,6 +18,7 @@ public sealed class ReleasePromptAiSessionsHandler(
         {
             var cacheName = session.GeminiCacheName;
             session.GeminiCacheName = null;
+            session.CacheSystemInstructionHash = null;
             session.CacheExpiresAt = null;
             session.CachedThroughSequence = 0;
 

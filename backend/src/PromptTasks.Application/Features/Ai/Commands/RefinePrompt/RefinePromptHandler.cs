@@ -6,7 +6,12 @@ using PromptTasks.Application.Features.Ai.Models;
 
 namespace PromptTasks.Application.Features.Ai.Commands.RefinePrompt;
 
-public sealed class RefinePromptHandler(IGeminiClient gemini, IGeminiModelCatalog catalog)
+public sealed class RefinePromptHandler(
+    IGeminiClient gemini,
+    IGeminiModelCatalog catalog,
+    IApplicationDbContext context,
+    IWorkspaceFileService workspaceFiles,
+    ICurrentUser currentUser)
     : IRequestHandler<RefinePromptCommand, RefinedPromptDto>
 {
     private const string RefineSystemInstruction =
@@ -22,6 +27,22 @@ public sealed class RefinePromptHandler(IGeminiClient gemini, IGeminiModelCatalo
         if (catalog.GetModel(request.Model) is null)
             throw new NotFoundException($"Modelo '{request.Model}' não encontrado.");
 
+        var systemInstruction = RefineSystemInstruction;
+        if (request.WorkingDirectoryId is { } workspaceId)
+        {
+            var workspace = context.WorkingDirectories
+                .FirstOrDefault(directory => directory.Id == workspaceId && directory.OwnerId == currentUser.UserId);
+
+            if (workspace is { EnableAiContext: true })
+            {
+                var workspaceContext = await workspaceFiles.ReadWorkspaceContextAsync(workspace.AbsolutePath, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(workspaceContext))
+                {
+                    systemInstruction = $"{RefineSystemInstruction}\n\n{workspaceContext}";
+                }
+            }
+        }
+
         var geminiRequest = new GeminiGenerationRequest(
             Model: request.Model,
             Temperature: request.Temperature,
@@ -29,7 +50,7 @@ public sealed class RefinePromptHandler(IGeminiClient gemini, IGeminiModelCatalo
             IncludeThoughts: false,
             UseSystemCache: false,
             CachedContentName: null,
-            SystemInstruction: RefineSystemInstruction,
+            SystemInstruction: systemInstruction,
             Contents: new[] { new GeminiTurn("user", request.Content) });
 
         var result = await gemini.RefineAsync(geminiRequest, cancellationToken);

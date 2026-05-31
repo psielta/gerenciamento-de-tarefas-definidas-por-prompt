@@ -6,6 +6,8 @@ public interface IWorkspaceFileService
 {
     Task<ValidatedPathResult> ValidatePathAsync(string absolutePath, CancellationToken cancellationToken);
 
+    Task<string?> ReadWorkspaceContextAsync(string rootAbsolutePath, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<FileSearchResultDto>> SearchAsync(
         Guid workingDirectoryId,
         string rootAbsolutePath,

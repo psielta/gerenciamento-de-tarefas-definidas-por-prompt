@@ -9,7 +9,8 @@ namespace PromptTasks.Application.Features.WorkingDirectories.Commands.UpdateWor
 public sealed class UpdateWorkingDirectoryHandler(
     IApplicationDbContext context,
     IWorkspaceFileService workspaceFileService,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IGeminiClient gemini)
     : IRequestHandler<UpdateWorkingDirectoryCommand, WorkingDirectoryDto>
 {
     public async Task<WorkingDirectoryDto> Handle(UpdateWorkingDirectoryCommand request, CancellationToken cancellationToken)
@@ -36,9 +37,37 @@ public sealed class UpdateWorkingDirectoryHandler(
             throw new ConflictException("This working directory is already registered.");
         }
 
+        var contextFlagChanged = directory.EnableAiContext != request.EnableAiContext;
+        var pathChanged = !directory.AbsolutePath.Equals(path.CanonicalPath, StringComparison.OrdinalIgnoreCase);
+
         directory.Name = request.Name.Trim();
         directory.AbsolutePath = path.CanonicalPath;
         directory.RespectGitignore = request.RespectGitignore;
+        directory.EnableAiContext = request.EnableAiContext;
+
+        if (contextFlagChanged || (request.EnableAiContext && pathChanged))
+        {
+            var sessions = context.AiChatSessions
+                .Where(session => session.WorkingDirectoryId == directory.Id
+                                  && session.OwnerId == currentUser.UserId
+                                  && session.GeminiCacheName != null)
+                .ToList();
+
+            foreach (var session in sessions)
+            {
+                var cacheName = session.GeminiCacheName;
+                session.GeminiCacheName = null;
+                session.CacheSystemInstructionHash = null;
+                session.CacheExpiresAt = null;
+                session.CachedThroughSequence = 0;
+
+                if (cacheName is not null)
+                {
+                    try { await gemini.DeleteCacheAsync(cacheName, cancellationToken); }
+                    catch { /* best effort */ }
+                }
+            }
+        }
 
         await context.SaveChangesAsync(cancellationToken);
         return directory.ToDto();

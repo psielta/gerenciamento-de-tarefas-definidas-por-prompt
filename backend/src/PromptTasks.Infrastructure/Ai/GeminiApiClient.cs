@@ -126,7 +126,7 @@ public sealed class GeminiApiClient(
             return null;
 
         // Rough token estimate: skip if below threshold
-        var estimatedTokens = history.Sum(t => t.Text.Length / 4);
+        var estimatedTokens = history.Sum(t => t.Text.Length / 4) + systemInstruction.Length / 4;
         if (estimatedTokens < options.Value.SessionCacheMinTokens)
             return null;
 

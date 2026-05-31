@@ -5,5 +5,6 @@ public sealed record WorkingDirectoryDto(
     string Name,
     string AbsolutePath,
     bool RespectGitignore,
+    bool EnableAiContext,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);

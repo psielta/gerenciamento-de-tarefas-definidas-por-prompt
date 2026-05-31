@@ -80,7 +80,7 @@ export function AiAssistantPanel({
 
   const handleSessionDeleted = () => {
     setActiveSession(null)
-    void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId) })
   }
 
   return (
@@ -154,7 +154,7 @@ export function AiAssistantPanel({
               activeSession={activeSession}
               onSessionCreated={(s) => {
                 setActiveSession(s)
-                void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId) })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.ai.sessions(promptId, workingDirectoryId) })
               }}
               onSessionDeleted={handleSessionDeleted}
             />

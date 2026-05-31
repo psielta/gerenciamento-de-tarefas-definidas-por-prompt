@@ -27,6 +27,7 @@ export const workingDirectorySchema = z.object({
   name: z.string(),
   absolutePath: z.string(),
   respectGitignore: z.boolean(),
+  enableAiContext: z.boolean(),
   createdAtUtc: z.string(),
   updatedAtUtc: z.string(),
 })

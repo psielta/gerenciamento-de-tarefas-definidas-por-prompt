@@ -13,6 +13,7 @@ public static class DtoMapper
             workingDirectory.Name,
             workingDirectory.AbsolutePath,
             workingDirectory.RespectGitignore,
+            workingDirectory.EnableAiContext,
             workingDirectory.CreatedAtUtc,
             workingDirectory.UpdatedAtUtc);
 

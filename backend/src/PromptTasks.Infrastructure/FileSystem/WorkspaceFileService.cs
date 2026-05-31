@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileSystemGlobbing;
 using PromptTasks.Application.Common.Exceptions;
@@ -9,6 +10,10 @@ namespace PromptTasks.Infrastructure.FileSystem;
 public sealed class WorkspaceFileService(IMemoryCache cache, IDateTimeProvider dateTimeProvider) : IWorkspaceFileService
 {
     private sealed record FileIndexEntry(string RelativePath, string FileName, bool IsDirectory);
+
+    private static readonly string[] ContextFileNames = ["README.md", "CLAUDE.md", "AGENT.md"];
+    private const long MaxContextFileBytes = 64 * 1024;
+    private const int MaxTotalContextChars = 48_000;
 
     private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -71,6 +76,83 @@ public sealed class WorkspaceFileService(IMemoryCache cache, IDateTimeProvider d
         {
             return Task.FromResult(ValidatedPathResult.Invalid(exception.Message));
         }
+    }
+
+    public async Task<string?> ReadWorkspaceContextAsync(string rootAbsolutePath, CancellationToken cancellationToken)
+    {
+        string rootCanonical;
+        try
+        {
+            rootCanonical = CanonicalizeExistingPath(rootAbsolutePath);
+        }
+        catch (Exception exception) when (exception is IOException
+                                             or UnauthorizedAccessException
+                                             or ArgumentException
+                                             or NotSupportedException
+                                             or PathTraversalException)
+        {
+            return null;
+        }
+
+        var sections = new List<string>();
+        var totalChars = 0;
+
+        foreach (var fileName in ContextFileNames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string content;
+            try
+            {
+                var candidateLogical = Path.GetFullPath(Path.Combine(rootCanonical, fileName));
+                if (!File.Exists(candidateLogical))
+                {
+                    continue;
+                }
+
+                var candidateCanonical = CanonicalizeExistingPath(candidateLogical);
+                EnsureContained(rootCanonical, candidateCanonical);
+
+                var info = new FileInfo(candidateCanonical);
+                if (info.Length == 0 || info.Length > MaxContextFileBytes)
+                {
+                    continue;
+                }
+
+                await using var stream = new FileStream(
+                    candidateCanonical,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                content = (await reader.ReadToEndAsync(cancellationToken)).Trim();
+            }
+            catch (Exception exception) when (exception is IOException
+                                                 or UnauthorizedAccessException
+                                                 or ArgumentException
+                                                 or NotSupportedException
+                                                 or PathTraversalException)
+            {
+                continue;
+            }
+
+            if (content.Length == 0 || totalChars + content.Length > MaxTotalContextChars)
+            {
+                continue;
+            }
+
+            sections.Add($"### {fileName}\n\n{content}");
+            totalChars += content.Length;
+        }
+
+        if (sections.Count == 0)
+        {
+            return null;
+        }
+
+        return "## Contexto do workspace\n\n"
+             + "Os arquivos abaixo descrevem o projeto e suas convenções; use-os como contexto.\n\n"
+             + string.Join("\n\n", sections);
     }
 
     public async Task<IReadOnlyList<FileSearchResultDto>> SearchAsync(

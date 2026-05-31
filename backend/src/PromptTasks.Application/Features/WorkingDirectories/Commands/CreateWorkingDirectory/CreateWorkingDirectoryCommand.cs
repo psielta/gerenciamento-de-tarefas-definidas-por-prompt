@@ -6,4 +6,5 @@ namespace PromptTasks.Application.Features.WorkingDirectories.Commands.CreateWor
 public sealed record CreateWorkingDirectoryCommand(
     string Name,
     string AbsolutePath,
-    bool RespectGitignore = true) : IRequest<WorkingDirectoryDto>;
+    bool RespectGitignore = true,
+    bool EnableAiContext = false) : IRequest<WorkingDirectoryDto>;

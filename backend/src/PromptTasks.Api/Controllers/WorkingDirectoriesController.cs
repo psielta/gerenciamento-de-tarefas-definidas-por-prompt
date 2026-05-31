@@ -28,7 +28,11 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(
-            new CreateWorkingDirectoryCommand(request.Name, request.AbsolutePath, request.RespectGitignore),
+            new CreateWorkingDirectoryCommand(
+                request.Name,
+                request.AbsolutePath,
+                request.RespectGitignore,
+                request.EnableAiContext),
             cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
@@ -41,7 +45,12 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(
-            new UpdateWorkingDirectoryCommand(id, request.Name, request.AbsolutePath, request.RespectGitignore),
+            new UpdateWorkingDirectoryCommand(
+                id,
+                request.Name,
+                request.AbsolutePath,
+                request.RespectGitignore,
+                request.EnableAiContext),
             cancellationToken);
 
         return Ok(result);
@@ -60,7 +69,15 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
         CancellationToken cancellationToken) =>
         Ok(await sender.Send(new ValidateWorkingDirectoryPathQuery(request.AbsolutePath), cancellationToken));
 
-    public sealed record CreateWorkingDirectoryRequest(string Name, string AbsolutePath, bool RespectGitignore = true);
-    public sealed record UpdateWorkingDirectoryRequest(string Name, string AbsolutePath, bool RespectGitignore);
+    public sealed record CreateWorkingDirectoryRequest(
+        string Name,
+        string AbsolutePath,
+        bool RespectGitignore = true,
+        bool EnableAiContext = false);
+    public sealed record UpdateWorkingDirectoryRequest(
+        string Name,
+        string AbsolutePath,
+        bool RespectGitignore,
+        bool EnableAiContext);
     public sealed record ValidatePathRequest(string AbsolutePath);
 }

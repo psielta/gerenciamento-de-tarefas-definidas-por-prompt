@@ -21,6 +21,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Templates de prompts para fluxo de revisao e implementacao de planos.
 - Indicadores no header para limites atuais de Claude Code e Codex, lendo as fontes locais dos agentes e sincronizando atualizacoes via SignalR.
 - **Assistente IA com Gemini:** refinamento de prompts, chat de suporte e configuracao de modelo diretamente na tela de criacao e edicao.
+- Contexto de workspace opcional na IA, lendo automaticamente `README.md`, `CLAUDE.md` e `AGENT.md` da raiz do diretorio de trabalho.
 - API REST documentada com OpenAPI/Scalar.
 - Testes unitarios, testes de integracao com PostgreSQL em container e testes de frontend com Vitest.
 
@@ -37,6 +38,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - SignalR para eventos em tempo real.
 - Leitura local de uso dos agentes: Claude via OAuth da instalacao local e API de uso da Anthropic; Codex via snapshots `rate_limits` dos JSONL em `~/.codex/sessions`.
 - Integracao com a Gemini API via `HttpClient` tipado: refinamento de prompts, chat com streaming SSE e context caching de dois niveis (instrucao de sistema e historico de sessao).
+- Leitura segura de contexto do workspace para IA, restrita a arquivos Markdown conhecidos na raiz canonica do diretorio.
 - OpenAPI e Scalar para exploracao da API.
 - xUnit, FluentAssertions, Testcontainers e `Microsoft.AspNetCore.Mvc.Testing` para testes.
 
@@ -101,6 +103,7 @@ O backend segue um fluxo orientado a casos de uso. Controllers chamam MediatR, h
 13. Na tela de criacao ou edicao de um prompt, o botao **Refinar** envia o conteudo atual para o Gemini e exibe uma previa do prompt otimizado antes de aplicar.
 14. O botao **IA** abre um drawer lateral com chat de suporte especializado em engenharia de prompts; o usuario pode incluir o conteudo do prompt atual como contexto da conversa.
 15. O painel de **Configuracao** do drawer permite escolher o modelo Gemini, ajustar a temperatura e definir o nivel de raciocinio. As configuracoes sao salvas por usuario.
+16. Em cada workspace, o usuario pode ativar o **Contexto de IA** para injetar `README.md`, `CLAUDE.md` e `AGENT.md` nas instrucoes de sistema do Gemini durante o refinamento e o chat.
 
 ## Como Executar
 
@@ -212,6 +215,8 @@ npm audit --audit-level=moderate
 - Ao arquivar ou excluir um prompt, os caches Gemini das sessoes associadas sao liberados proativamente para evitar custo de armazenamento desnecessario.
 - A chave `GEMINI_API_KEY` nunca trafega pelo navegador; todas as chamadas a API Gemini sao feitas exclusivamente pelo backend.
 - O chat usa context caching em dois niveis: instrucao de sistema compartilhada por modelo (TTL 1h) e cache de historico por sessao criado apos atingir o limite de tokens configurado.
+- O contexto de IA do workspace e opt-in por diretorio de trabalho e le apenas `README.md`, `CLAUDE.md` e `AGENT.md` da raiz canonica. Arquivos ausentes, vazios, inacessiveis ou grandes demais sao ignorados sem falhar a chamada de IA.
+- Contexto especifico de workspace nao entra no cache global de system instruction do Gemini; quando usado no chat, ele e embutido no cache de sessao e protegido por hash para evitar reutilizar contexto antigo.
 - O nivel de raciocinio padrao e `high`; usuarios podem reduzir para `medium` ou `low` na aba Configuracao do drawer de IA.
 
 ## Documentacao para Agentes

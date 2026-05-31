@@ -59,6 +59,7 @@ export const queryKeys = {
     models: () => ['ai', 'models'] as const,
     settings: () => ['ai', 'settings'] as const,
     session: (id: string) => ['ai', 'sessions', id] as const,
-    sessions: (promptId?: string) => ['ai', 'sessions', { promptId }] as const,
+    sessions: (promptId?: string, workingDirectoryId?: string) =>
+      ['ai', 'sessions', { promptId, workingDirectoryId }] as const,
   },
 }

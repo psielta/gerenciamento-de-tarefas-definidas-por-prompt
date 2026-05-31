@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using MediatR;
 using PromptTasks.Application.Common.Exceptions;
@@ -13,7 +14,8 @@ public sealed class SendChatMessageHandler(
     IApplicationDbContext context,
     IGeminiClient gemini,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IWorkspaceFileService workspaceFiles)
     : IStreamRequestHandler<SendChatMessageCommand, ChatChunkDto>
 {
     // Used as inline fallback when system cache is unavailable
@@ -53,6 +55,26 @@ public sealed class SendChatMessageHandler(
             ? $"{request.Message}\n\n---\n**Conteúdo do prompt atual:**\n{request.PromptContent}"
             : request.Message;
 
+        string? workspaceContext = null;
+        if (session.WorkingDirectoryId is { } workingDirectoryId)
+        {
+            var workspace = context.WorkingDirectories
+                .FirstOrDefault(directory =>
+                    directory.Id == workingDirectoryId && directory.OwnerId == currentUser.UserId);
+
+            if (workspace is { EnableAiContext: true })
+            {
+                workspaceContext = await workspaceFiles.ReadWorkspaceContextAsync(
+                    workspace.AbsolutePath,
+                    cancellationToken);
+            }
+        }
+
+        var systemInstruction = string.IsNullOrWhiteSpace(workspaceContext)
+            ? FallbackSystemInstruction
+            : $"{FallbackSystemInstruction}\n\n{workspaceContext}";
+        var systemInstructionHash = HashSystemInstruction(systemInstruction);
+
         var userMessage = new AiChatMessage
         {
             SessionId = session.Id,
@@ -66,7 +88,8 @@ public sealed class SendChatMessageHandler(
 
         var cacheValid = session.GeminiCacheName is not null &&
                          session.CacheExpiresAt.HasValue &&
-                         session.CacheExpiresAt.Value > now.AddMinutes(2);
+                         session.CacheExpiresAt.Value > now.AddMinutes(2) &&
+                         session.CacheSystemInstructionHash == systemInstructionHash;
 
         IReadOnlyList<GeminiTurn> contents;
         string? cachedContentName = null;
@@ -102,9 +125,9 @@ public sealed class SendChatMessageHandler(
             Temperature: session.Temperature,
             Thinking: thinking,
             IncludeThoughts: true,
-            UseSystemCache: !cacheValid,
+            UseSystemCache: !cacheValid && string.IsNullOrWhiteSpace(workspaceContext),
             CachedContentName: cachedContentName,
-            SystemInstruction: FallbackSystemInstruction,
+            SystemInstruction: systemInstruction,
             Contents: contents);
 
         var responseText = new StringBuilder();
@@ -149,15 +172,22 @@ public sealed class SendChatMessageHandler(
                 .Select(m => new GeminiTurn(m.Role, m.Content))
                 .ToList();
 
-            var cacheHandle = await gemini.EnsureSessionCacheAsync(session.Model, string.Empty, history, cancellationToken);
+            var cacheHandle = await gemini.EnsureSessionCacheAsync(session.Model, systemInstruction, history, cancellationToken);
             if (cacheHandle is not null)
             {
                 session.GeminiCacheName = cacheHandle.Name;
                 session.CacheExpiresAt = cacheHandle.ExpiresAt;
                 session.CachedThroughSequence = modelSequence;
+                session.CacheSystemInstructionHash = systemInstructionHash;
             }
         }
 
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string HashSystemInstruction(string systemInstruction)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(systemInstruction));
+        return Convert.ToHexString(bytes);
     }
 }

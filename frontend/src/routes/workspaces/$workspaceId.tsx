@@ -1,10 +1,13 @@
 import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, Radio } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Loader2, Radio, Sparkles } from 'lucide-react'
 import { useEffect } from 'react'
-import { getWorkingDirectory } from '@/api/working-directories'
+import { toast } from 'sonner'
+import { getWorkingDirectory, updateWorkingDirectory } from '@/api/working-directories'
 import { queryKeys } from '@/api/query-keys'
+import { getErrorMessage } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { usePromptHub } from '@/realtime/prompt-hub'
 
 export const Route = createFileRoute('/workspaces/$workspaceId')({
@@ -13,11 +16,33 @@ export const Route = createFileRoute('/workspaces/$workspaceId')({
 
 function WorkspaceLayout() {
   const { workspaceId } = Route.useParams()
+  const queryClient = useQueryClient()
   const hub = usePromptHub()
   const { joinWorkingDirectory, leaveWorkingDirectory } = hub
   const workspaceQuery = useQuery({
     queryKey: queryKeys.workingDirectories.detail(workspaceId),
     queryFn: () => getWorkingDirectory(workspaceId),
+  })
+
+  const aiContextMutation = useMutation({
+    mutationFn: (enableAiContext: boolean) => {
+      if (!workspaceQuery.data) {
+        throw new Error('Diretorio de trabalho ainda nao carregado.')
+      }
+
+      return updateWorkingDirectory(workspaceId, {
+        name: workspaceQuery.data.name,
+        absolutePath: workspaceQuery.data.absolutePath,
+        respectGitignore: workspaceQuery.data.respectGitignore,
+        enableAiContext,
+      })
+    },
+    onSuccess: async (workspace) => {
+      queryClient.setQueryData(queryKeys.workingDirectories.detail(workspaceId), workspace)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.workingDirectories.all })
+      toast.success('Configuracao de contexto de IA atualizada.')
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
   })
 
   useEffect(() => {
@@ -52,6 +77,28 @@ function WorkspaceLayout() {
           {hub.connected ? 'Tempo real ativo' : 'Reconectando'}
         </div>
       </div>
+      {workspaceQuery.data ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-[#d9dfd5] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-[#eef2eb]">
+              <Sparkles className="h-4 w-4 text-[#254632]" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-[#172126]">Contexto de IA</h2>
+              <p className="mt-1 text-sm text-[#66746b]">
+                README.md, CLAUDE.md e AGENT.md entram nas instrucoes do Gemini.
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="workspace-ai-context"
+            checked={workspaceQuery.data.enableAiContext}
+            disabled={aiContextMutation.isPending}
+            onChange={(event) => aiContextMutation.mutate(event.target.checked)}
+            label={workspaceQuery.data.enableAiContext ? 'Ativo' : 'Inativo'}
+          />
+        </div>
+      ) : null}
       <Outlet />
     </div>
   )

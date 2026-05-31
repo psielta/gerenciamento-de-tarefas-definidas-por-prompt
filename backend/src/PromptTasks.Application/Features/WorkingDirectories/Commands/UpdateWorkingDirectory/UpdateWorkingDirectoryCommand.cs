@@ -7,4 +7,5 @@ public sealed record UpdateWorkingDirectoryCommand(
     Guid Id,
     string Name,
     string AbsolutePath,
-    bool RespectGitignore) : IRequest<WorkingDirectoryDto>;
+    bool RespectGitignore,
+    bool EnableAiContext) : IRequest<WorkingDirectoryDto>;

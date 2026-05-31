@@ -49,7 +49,12 @@ public sealed class AiController(ISender sender) : ControllerBase
             request.ThinkingLevel);
 
         return Ok(await sender.Send(
-            new RefinePromptCommand(request.Content, request.Model, request.Temperature, thinking),
+            new RefinePromptCommand(
+                request.Content,
+                request.Model,
+                request.Temperature,
+                thinking,
+                request.WorkingDirectoryId),
             cancellationToken));
     }
 
@@ -133,7 +138,8 @@ public sealed class AiController(ISender sender) : ControllerBase
         double Temperature,
         string? ThinkingMode,
         int? ThinkingBudget,
-        string? ThinkingLevel);
+        string? ThinkingLevel,
+        Guid? WorkingDirectoryId);
 
     public sealed record StartSessionRequest(
         string? Title,

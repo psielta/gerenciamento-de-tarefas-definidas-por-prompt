@@ -40,6 +40,7 @@ export async function refinePrompt(params: {
   thinkingMode?: string
   thinkingBudget?: number | null
   thinkingLevel?: string | null
+  workingDirectoryId?: string
 }): Promise<RefinedPrompt> {
   const data = await api.post('ai/refine', { json: params }).json()
   return refinedPromptSchema.parse(data)
