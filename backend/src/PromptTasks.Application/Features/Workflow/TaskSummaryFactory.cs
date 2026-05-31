@@ -1,5 +1,6 @@
 using System.Globalization;
 using PromptTasks.Application.Common.Interfaces;
+using PromptTasks.Application.Common.Mappings;
 using PromptTasks.Application.Common.Models;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.Workflows;
@@ -19,6 +20,14 @@ internal static class TaskSummaryFactory
         var updatedAtUtc = workflow is not null && workflow.UpdatedAtUtc > prompt.UpdatedAtUtc
             ? workflow.UpdatedAtUtc
             : prompt.UpdatedAtUtc;
+        IReadOnlyList<WorkflowPhaseDto> phases = workflow is null
+            ? Array.Empty<WorkflowPhaseDto>()
+            : context.PromptWorkflowPhases
+                .Where(phase => phase.PromptWorkflowId == workflow.Id)
+                .OrderBy(phase => phase.OrderIndex)
+                .ToList()
+                .Select(phase => phase.ToDto())
+                .ToList();
 
         return new TaskSummaryDto(
             prompt.Id,
@@ -35,6 +44,8 @@ internal static class TaskSummaryFactory
             updatedAtUtc,
             hasChildPrompts,
             hasLinkedPlan,
+            prompt.RowVersion.ToString(CultureInfo.InvariantCulture),
+            phases,
             workflow is null ? null : workflow.RowVersion.ToString(CultureInfo.InvariantCulture));
     }
 }

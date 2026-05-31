@@ -100,6 +100,9 @@ public sealed class PromptWorkflowApiTests(PromptTasksApiFactory factory) : ICla
 
         var board = await client.GetFromJsonAsync<List<TaskSummaryDto>>("/api/workflow/board", JsonOptions);
         board.Should().Contain(summary => summary.PromptId == prompt.Id && summary.CurrentPhaseName == workflow.CurrentPhaseName);
+        var boardSummary = board!.Single(summary => summary.PromptId == prompt.Id);
+        boardSummary.Phases.Should().Contain(phase => phase.Name == "Revisão do plano");
+        boardSummary.PromptRowVersion.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

@@ -1,16 +1,19 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Loader2, Search, Settings2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { listWorkingDirectories } from '@/api/working-directories'
-import { getBoard, getWorkflowTemplate } from '@/api/workflow'
+import { ChevronLeft, ChevronRight, Columns3, Loader2, Rows3, Search, Settings2, SlidersHorizontal, X } from 'lucide-react'
+import type { DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { getErrorMessage } from '@/api/client'
 import { queryKeys } from '@/api/query-keys'
-import type { PromptStatus, PromptWorkflowStatus } from '@/api/schemas'
+import type { PromptStatus, PromptWorkflowStatus, TaskSummary, Workflow } from '@/api/schemas'
+import { listWorkingDirectories } from '@/api/working-directories'
+import { completeWorkflow, getBoard, getWorkflowTemplate, reopenWorkflow, setPhase, startWorkflow } from '@/api/workflow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { usePromptHub } from '@/realtime/prompt-hub'
-import { buildColumns } from './board-columns'
+import { buildColumns, type BoardColumn } from './board-columns'
 import { TaskCard } from './task-card'
 
 const PROMPT_STATUS_OPTIONS: Array<{ value: PromptStatus | ''; label: string }> = [
@@ -20,13 +23,21 @@ const PROMPT_STATUS_OPTIONS: Array<{ value: PromptStatus | ''; label: string }> 
   { value: 'Archived', label: 'Arquivadas' },
 ]
 
+type BoardViewMode = 'kanban' | 'vertical'
+
 export function Board() {
+  const queryClient = useQueryClient()
   const hub = usePromptHub()
   const { joinTasks, leaveTasks } = hub
   const [q, setQ] = useState('')
   const [workingDirectoryId, setWorkingDirectoryId] = useState('')
   const [workflowStatus, setWorkflowStatus] = useState<PromptWorkflowStatus | ''>('')
   const [promptStatus, setPromptStatus] = useState<PromptStatus | ''>('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<BoardViewMode>('kanban')
+  const [draggedPromptId, setDraggedPromptId] = useState<string | null>(null)
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
+  const boardScrollerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     joinTasks()
@@ -57,64 +68,303 @@ export function Board() {
   })
 
   const columns = useMemo(
-    () => buildColumns(boardQuery.data ?? [], templateQuery.data?.phases.map((phase) => phase.name) ?? []),
+    () => buildColumns(boardQuery.data ?? [], templateQuery.data?.phases ?? []),
     [boardQuery.data, templateQuery.data],
   )
+  const taskByPromptId = useMemo(
+    () => new Map((boardQuery.data ?? []).map((task) => [task.promptId, task])),
+    [boardQuery.data],
+  )
   const total = boardQuery.data?.length ?? 0
+  const activeFiltersCount = [q.trim(), workingDirectoryId, workflowStatus, promptStatus].filter(Boolean).length
+
+  const clearFilters = () => {
+    setQ('')
+    setWorkingDirectoryId('')
+    setWorkflowStatus('')
+    setPromptStatus('')
+  }
+
+  const invalidateWorkflow = (promptId?: string) => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workflow.all })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.prompts.all })
+    if (promptId) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.workflow.detail(promptId) })
+    }
+  }
+
+  const moveTask = useMutation({
+    mutationFn: ({ task, column }: { task: TaskSummary; column: BoardColumn }) => moveTaskToColumn(task, column),
+    onSuccess: (workflow, variables) => {
+      invalidateWorkflow(variables.task.promptId)
+      if (workflow) {
+        queryClient.setQueryData(queryKeys.workflow.detail(variables.task.promptId), workflow)
+      }
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+    onSettled: () => {
+      setDraggedPromptId(null)
+      setDragOverColumnId(null)
+    },
+  })
+
+  const moveTaskToColumn = async (task: TaskSummary, column: BoardColumn): Promise<Workflow | null> => {
+    if (column.kind === 'no-workflow') {
+      throw new Error('Não é possível voltar uma tarefa para Sem fluxo.')
+    }
+
+    if (column.kind === 'done') {
+      if (task.workflowStatus === 'Done') {
+        return null
+      }
+
+      if (task.workflowStatus !== 'Active' || !task.rowVersion) {
+        throw new Error('Inicie o fluxo antes de concluir a tarefa.')
+      }
+
+      return completeWorkflow(task.promptId, task.rowVersion)
+    }
+
+    if (task.workflowStatus === null) {
+      if (column.phaseOrderIndex === undefined) {
+        throw new Error('Esta fase não está no template atual.')
+      }
+
+      return startWorkflow(task.promptId, column.phaseOrderIndex)
+    }
+
+    if (!task.rowVersion) {
+      throw new Error('Recarregue o quadro antes de mover esta tarefa.')
+    }
+
+    const targetPhase = findTaskPhase(task, column)
+    if (!targetPhase) {
+      throw new Error('Esta tarefa não possui a fase de destino.')
+    }
+
+    if (task.currentPhaseId === targetPhase.id && task.workflowStatus === 'Active') {
+      return null
+    }
+
+    if (task.workflowStatus === 'Done') {
+      return reopenWorkflow(task.promptId, task.rowVersion, targetPhase.id)
+    }
+
+    return setPhase(task.promptId, targetPhase.id, task.rowVersion)
+  }
+
+  const findTaskPhase = (task: TaskSummary, column: BoardColumn) => {
+    if (column.phaseOrderIndex !== undefined) {
+      const byOrder = task.phases.find((phase) => phase.orderIndex === column.phaseOrderIndex)
+      if (byOrder) {
+        return byOrder
+      }
+    }
+
+    return task.phases.find((phase) => phase.name === column.phaseName)
+  }
+
+  const handleDragStart = (task: TaskSummary, event: DragEvent<HTMLDivElement>) => {
+    setDraggedPromptId(task.promptId)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('application/x-prompt-task-id', task.promptId)
+    event.dataTransfer.setData('text/plain', task.promptId)
+  }
+
+  const handleDrop = (column: BoardColumn, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setDragOverColumnId(null)
+
+    const promptId = event.dataTransfer.getData('application/x-prompt-task-id') || draggedPromptId
+    const task = promptId ? taskByPromptId.get(promptId) : undefined
+    if (!task || !column.droppable || moveTask.isPending) {
+      setDraggedPromptId(null)
+      return
+    }
+
+    void moveTask.mutate({ task, column })
+  }
+
+  const scrollBoard = (direction: -1 | 1) => {
+    const scroller = boardScrollerRef.current
+    if (!scroller) {
+      return
+    }
+
+    scroller.scrollBy({
+      left: direction * Math.max(320, scroller.clientWidth * 0.8),
+      behavior: 'smooth',
+    })
+  }
+
+  const renderColumn = (column: BoardColumn, layout: BoardViewMode) => (
+    <div
+      key={column.id}
+      onDragOver={(event) => {
+        if (!column.droppable || moveTask.isPending) {
+          return
+        }
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        setDragOverColumnId(column.id)
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setDragOverColumnId((current) => (current === column.id ? null : current))
+        }
+      }}
+      onDrop={(event) => handleDrop(column, event)}
+      className={`gap-3 rounded-lg p-2 transition-colors ${
+        layout === 'kanban' ? 'flex w-72 shrink-0 flex-col' : 'grid border border-[#d9dfd5] bg-white'
+      } ${dragOverColumnId === column.id ? 'bg-[#e7ece6]' : ''}`}
+    >
+      <div className="flex items-center justify-between rounded-md bg-[#eef2eb] px-3 py-2">
+        <span className="text-sm font-semibold text-[#2c3a31]">{column.title}</span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#66746b]">{column.tasks.length}</span>
+      </div>
+      <div className={layout === 'kanban' ? 'grid gap-2' : 'grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'}>
+        {column.tasks.map((task) => (
+          <TaskCard
+            key={task.promptId}
+            task={task}
+            dragging={draggedPromptId === task.promptId}
+            moveDisabled={moveTask.isPending}
+            onDragStart={handleDragStart}
+            onDragEnd={() => {
+              setDraggedPromptId(null)
+              setDragOverColumnId(null)
+            }}
+          />
+        ))}
+        {column.tasks.length === 0 ? (
+          <p
+            className={`rounded-md border border-dashed px-3 py-4 text-center text-xs ${
+              column.droppable && draggedPromptId ? 'border-[#b9c7b4] text-[#66746b]' : 'border-[#d9dfd5] text-[#8a958c]'
+            }`}
+          >
+            {column.droppable && draggedPromptId ? 'Solte aqui' : 'Vazio'}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
 
   return (
-    <section className="grid gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[#172126]">Quadro de tarefas</h1>
-          <p className="mt-1 text-sm text-[#66746b]">Acompanhe a fase e o responsável de cada tarefa, em todos os diretórios.</p>
-        </div>
-        <Link to="/settings">
-          <Button type="button" variant="secondary" size="sm">
-            <Settings2 className="h-4 w-4" />
-            Configurar fases
+    <section className="grid gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => setFiltersOpen((current) => !current)}>
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros
+            {activeFiltersCount > 0 ? (
+              <span className="rounded-full bg-[#254632] px-1.5 py-0.5 text-[10px] font-semibold text-white">{activeFiltersCount}</span>
+            ) : null}
           </Button>
-        </Link>
+          <span className="truncate text-xs text-[#66746b]">{total} tarefas</span>
+          <div className="flex rounded-md border border-[#d9dfd5] bg-white p-0.5">
+            <Button
+              type="button"
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setViewMode('kanban')}
+              title="Visualização Kanban"
+            >
+              <Columns3 className="h-4 w-4" />
+              Kanban
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === 'vertical' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setViewMode('vertical')}
+              title="Visualização vertical"
+            >
+              <Rows3 className="h-4 w-4" />
+              Vertical
+            </Button>
+          </div>
+          {activeFiltersCount > 0 ? (
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4" />
+              Limpar
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1">
+          <Link to="/settings">
+            <Button type="button" variant="secondary" size="icon" title="Configurar fases" aria-label="Configurar fases">
+              <Settings2 className="h-4 w-4" />
+            </Button>
+          </Link>
+          {total > 0 && viewMode === 'kanban' ? (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                title="Rolar para esquerda"
+                aria-label="Rolar quadro para esquerda"
+                onClick={() => scrollBoard(-1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                title="Rolar para direita"
+                aria-label="Rolar quadro para direita"
+                onClick={() => scrollBoard(1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-[#d9dfd5] bg-white p-4 lg:flex-row lg:items-end">
-        <label className="grid flex-1 gap-1.5 text-sm font-medium text-[#253035]">
-          Buscar
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#66746b]" />
-            <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Título ou conteúdo" />
-          </div>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium text-[#253035] lg:w-48">
-          Diretório
-          <Select value={workingDirectoryId} onChange={(event) => setWorkingDirectoryId(event.target.value)}>
-            <option value="">Todos</option>
-            {workspacesQuery.data?.map((workspace) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium text-[#253035] lg:w-40">
-          Fluxo
-          <Select value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as PromptWorkflowStatus | '')}>
-            <option value="">Todos</option>
-            <option value="Active">Em andamento</option>
-            <option value="Done">Concluídas</option>
-          </Select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium text-[#253035] lg:w-40">
-          Prompts
-          <Select value={promptStatus} onChange={(event) => setPromptStatus(event.target.value as PromptStatus | '')}>
-            {PROMPT_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </label>
-      </div>
+      {filtersOpen ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-[#d9dfd5] bg-white p-3 lg:flex-row lg:items-end">
+          <label className="grid flex-1 gap-1 text-xs font-medium text-[#253035]">
+            Buscar
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#66746b]" />
+              <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Título ou conteúdo" />
+            </div>
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-[#253035] lg:w-48">
+            Diretório
+            <Select value={workingDirectoryId} onChange={(event) => setWorkingDirectoryId(event.target.value)}>
+              <option value="">Todos</option>
+              {workspacesQuery.data?.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-[#253035] lg:w-40">
+            Fluxo
+            <Select value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as PromptWorkflowStatus | '')}>
+              <option value="">Todos</option>
+              <option value="Active">Em andamento</option>
+              <option value="Done">Concluídas</option>
+            </Select>
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-[#253035] lg:w-40">
+            Prompts
+            <Select value={promptStatus} onChange={(event) => setPromptStatus(event.target.value as PromptStatus | '')}>
+              {PROMPT_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+        </div>
+      ) : null}
 
       {boardQuery.isLoading ? (
         <div className="flex items-center gap-2 rounded-lg border border-[#d9dfd5] bg-white p-4 text-sm text-[#66746b]">
@@ -125,24 +375,29 @@ export function Board() {
         <div className="rounded-lg border border-dashed border-[#cbd5c8] bg-white p-6 text-sm text-[#66746b]">
           Nenhuma tarefa encontrada. Crie um prompt em um diretório para começar.
         </div>
+      ) : viewMode === 'kanban' ? (
+        <div
+          ref={boardScrollerRef}
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault()
+              scrollBoard(-1)
+            }
+            if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              scrollBoard(1)
+            }
+          }}
+          className="max-h-[calc(100vh-9rem)] overflow-auto rounded-lg pb-2 pr-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5e7461]"
+        >
+          <div className="flex min-w-max gap-4 pb-2">
+            {columns.map((column) => renderColumn(column, 'kanban'))}
+          </div>
+        </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {columns.map((column) => (
-            <div key={column.title} className="flex w-72 shrink-0 flex-col gap-3">
-              <div className="flex items-center justify-between rounded-md bg-[#eef2eb] px-3 py-2">
-                <span className="text-sm font-semibold text-[#2c3a31]">{column.title}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#66746b]">{column.tasks.length}</span>
-              </div>
-              <div className="grid gap-2">
-                {column.tasks.map((task) => (
-                  <TaskCard key={task.promptId} task={task} />
-                ))}
-                {column.tasks.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-[#d9dfd5] px-3 py-4 text-center text-xs text-[#8a958c]">Vazio</p>
-                ) : null}
-              </div>
-            </div>
-          ))}
+        <div className="grid max-h-[calc(100vh-9rem)] gap-3 overflow-auto pr-1">
+          {columns.map((column) => renderColumn(column, 'vertical'))}
         </div>
       )}
     </section>

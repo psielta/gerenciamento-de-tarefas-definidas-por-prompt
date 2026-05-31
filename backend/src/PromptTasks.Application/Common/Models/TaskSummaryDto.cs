@@ -18,4 +18,6 @@ public sealed record TaskSummaryDto(
     DateTimeOffset UpdatedAtUtc,
     bool HasChildPrompts,
     bool HasLinkedPlan,
+    string PromptRowVersion,
+    IReadOnlyList<WorkflowPhaseDto> Phases,
     string? RowVersion);

@@ -10,7 +10,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Editor de prompt em Markdown com busca de arquivos por `@`, mencoes estilizadas e validacao das referencias no backend.
 - Persistencia de prompts, versoes, status e referencias de arquivos no PostgreSQL.
 - Relacionamento entre prompts pai e prompts filhos, usado para gerar prompts auxiliares a partir de um plano vinculado.
-- Board global de tarefas, agrupado por fase, com filtros por diretorio, status do prompt e status do workflow.
+- Board global de tarefas, agrupado por fase, com modos Kanban e vertical, drag-and-drop, arquivamento direto pelo cartao e filtros por diretorio, status do prompt e status do workflow.
 - Workflow manual por prompt raiz, com fases configuraveis, responsavel atual, avancar/voltar fase, trocar responsavel, concluir e reabrir.
 - Timeline append-only por prompt, registrando inicio do fluxo, mudancas de fase, troca de responsavel, notas, conclusao, reabertura e edicao de fases.
 - Selos de fase e responsavel nas listas de prompts do workspace.
@@ -90,8 +90,9 @@ O backend segue um fluxo orientado a casos de uso. Controllers chamam MediatR, h
 7. Prompts filhos permanecem associados ao prompt pai e nao poluem a listagem principal do workspace.
 8. Cada prompt raiz representa uma tarefa no board global.
 9. Ao criar uma tarefa nao arquivada, o workflow inicia automaticamente em `Planejamento` com responsavel `ClaudeCode`.
-10. Na aba `Timeline`, o usuario acompanha o historico, adiciona notas, muda fase/responsavel, conclui ou reabre o fluxo.
-11. O template de fases pode ser editado em `Configuracoes`; tarefas existentes mantem um snapshot proprio das fases.
+10. No board, o usuario pode arrastar tarefas entre fases, concluir, reabrir ou arquivar a tarefa.
+11. Na aba `Timeline`, o usuario acompanha o historico, adiciona notas, muda fase/responsavel, conclui ou reabre o fluxo.
+12. O template de fases pode ser editado em `Configuracoes`; tarefas existentes mantem um snapshot proprio das fases.
 
 ## Como Executar
 

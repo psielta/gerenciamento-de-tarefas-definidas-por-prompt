@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediatR;
 using PromptTasks.Application.Common.Interfaces;
+using PromptTasks.Application.Common.Mappings;
 using PromptTasks.Application.Common.Models;
 using PromptTasks.Domain.Prompts;
 
@@ -41,6 +42,17 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
             .Where(workflow => promptIds.Contains(workflow.PromptId))
             .ToList()
             .ToDictionary(workflow => workflow.PromptId);
+        var workflowIds = workflows.Values.Select(workflow => workflow.Id).ToHashSet();
+        var phasesByWorkflowId = context.PromptWorkflowPhases
+            .Where(phase => workflowIds.Contains(phase.PromptWorkflowId))
+            .ToList()
+            .GroupBy(phase => phase.PromptWorkflowId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(phase => phase.OrderIndex)
+                    .Select(phase => phase.ToDto())
+                    .ToList());
 
         var workingDirectoryIds = prompts.Select(prompt => prompt.WorkingDirectoryId).ToHashSet();
         var workingDirectoryNames = context.WorkingDirectories
@@ -91,6 +103,10 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
                 updatedAtUtc,
                 promptsWithChildren.Contains(prompt.Id),
                 promptsWithLinkedPlan.Contains(prompt.Id),
+                prompt.RowVersion.ToString(CultureInfo.InvariantCulture),
+                workflow is null || !phasesByWorkflowId.TryGetValue(workflow.Id, out var phases)
+                    ? Array.Empty<WorkflowPhaseDto>()
+                    : phases,
                 workflow is null ? null : workflow.RowVersion.ToString(CultureInfo.InvariantCulture)));
         }
 

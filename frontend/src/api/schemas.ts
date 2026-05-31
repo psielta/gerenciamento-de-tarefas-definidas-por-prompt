@@ -223,6 +223,8 @@ export const taskSummarySchema = z.object({
   updatedAtUtc: z.string(),
   hasChildPrompts: z.boolean(),
   hasLinkedPlan: z.boolean(),
+  promptRowVersion: z.string(),
+  phases: z.array(workflowPhaseSchema),
   rowVersion: z.string().nullable(),
 })
 

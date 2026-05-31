@@ -1,12 +1,22 @@
-import type { TaskSummary } from '@/api/schemas'
+import type { TaskSummary, WorkflowPhase } from '@/api/schemas'
 
-export type BoardColumn = { title: string; tasks: TaskSummary[] }
+export type BoardColumnKind = 'no-workflow' | 'phase' | 'done'
+
+export type BoardColumn = {
+  id: string
+  title: string
+  kind: BoardColumnKind
+  tasks: TaskSummary[]
+  phaseName?: string
+  phaseOrderIndex?: number
+  droppable: boolean
+}
 
 /**
  * Groups board tasks into "Sem fluxo", one column per template phase (in order),
  * any non-template phases that still have active tasks, and a trailing "Concluídas".
  */
-export function buildColumns(tasks: TaskSummary[], templatePhaseNames: string[]): BoardColumn[] {
+export function buildColumns(tasks: TaskSummary[], templatePhases: Pick<WorkflowPhase, 'name' | 'orderIndex'>[]): BoardColumn[] {
   const noWorkflow = tasks.filter((task) => task.workflowStatus === null)
   const done = tasks.filter((task) => task.workflowStatus === 'Done')
   const active = tasks.filter((task) => task.workflowStatus === 'Active')
@@ -21,22 +31,49 @@ export function buildColumns(tasks: TaskSummary[], templatePhaseNames: string[])
 
   const columns: BoardColumn[] = []
   if (noWorkflow.length > 0) {
-    columns.push({ title: 'Sem fluxo', tasks: noWorkflow })
+    columns.push({
+      id: 'no-workflow',
+      title: 'Sem fluxo',
+      kind: 'no-workflow',
+      tasks: noWorkflow,
+      droppable: false,
+    })
   }
 
-  for (const name of templatePhaseNames) {
-    columns.push({ title: name, tasks: activeByPhase.get(name) ?? [] })
+  const orderedTemplatePhases = [...templatePhases].sort((a, b) => a.orderIndex - b.orderIndex)
+  for (const phase of orderedTemplatePhases) {
+    columns.push({
+      id: `phase:${phase.orderIndex}:${phase.name}`,
+      title: phase.name,
+      kind: 'phase',
+      tasks: activeByPhase.get(phase.name) ?? [],
+      phaseName: phase.name,
+      phaseOrderIndex: phase.orderIndex,
+      droppable: true,
+    })
   }
 
+  const templatePhaseNames = orderedTemplatePhases.map((phase) => phase.name)
   for (const [name, list] of activeByPhase) {
     if (!templatePhaseNames.includes(name)) {
-      columns.push({ title: name, tasks: list })
+      columns.push({
+        id: `phase:custom:${name}`,
+        title: name,
+        kind: 'phase',
+        tasks: list,
+        phaseName: name,
+        droppable: true,
+      })
     }
   }
 
-  if (done.length > 0) {
-    columns.push({ title: 'Concluídas', tasks: done })
-  }
+  columns.push({
+    id: 'done',
+    title: 'Concluídas',
+    kind: 'done',
+    tasks: done,
+    droppable: true,
+  })
 
   return columns
 }
