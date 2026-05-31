@@ -30,7 +30,10 @@ type PromptFormProps = {
 export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [editorMentions, setEditorMentions] = useState<FileMention[] | null>(null)
+  const [editorMentions, setEditorMentions] = useState<{
+    promptId?: string
+    mentions: FileMention[]
+  } | null>(null)
 
   const promptQuery = useQuery({
     queryKey: promptId ? queryKeys.prompts.detail(promptId) : ['prompts', 'new'],
@@ -68,7 +71,10 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
     })
   }, [form, promptQuery.data])
 
-  const mentions = editorMentions ?? promptQuery.data?.mentions ?? []
+  const mentions =
+    editorMentions && editorMentions.promptId === promptId
+      ? editorMentions.mentions
+      : promptQuery.data?.mentions ?? []
 
   const createMutation = useMutation({
     mutationFn: createPrompt,
@@ -131,7 +137,19 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
 
   const isBusy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
-  if (promptId && promptQuery.isLoading) {
+  if (promptId && promptQuery.isError) {
+    return (
+      <div className="rounded-lg border border-[#f8b4aa] bg-[#fff3f0] p-4 text-sm text-[#8a241b]">
+        {getErrorMessage(promptQuery.error)}
+      </div>
+    )
+  }
+
+  const isWaitingForPromptValues = Boolean(
+    promptId && promptQuery.data && !form.formState.isDirty && content !== promptQuery.data.content,
+  )
+
+  if (promptId && (promptQuery.isLoading || !promptQuery.data || isWaitingForPromptValues)) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-[#d9dfd5] bg-white p-4 text-sm text-[#66746b]">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -188,7 +206,7 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
           value={content}
           onChange={(value, nextMentions) => {
             form.setValue('content', value, { shouldDirty: true, shouldValidate: true })
-            setEditorMentions(nextMentions)
+            setEditorMentions({ promptId, mentions: nextMentions })
           }}
         />
 
