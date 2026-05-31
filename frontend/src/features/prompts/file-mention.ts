@@ -61,6 +61,7 @@ export function createFileMentionSuggestion(searchMentions: SearchMentions) {
     render: () => {
       let container: HTMLDivElement | null = null
       let cleanupPosition: (() => void) | null = null
+      let pendingExit: number | null = null
       let selectedIndex = 0
       let lastProps: SuggestionProps<FileSearchResult, MentionAttrs> | null = null
 
@@ -108,6 +109,26 @@ export function createFileMentionSuggestion(searchMentions: SearchMentions) {
         })
       }
 
+      const clearPendingExit = () => {
+        if (pendingExit === null) {
+          return
+        }
+
+        window.clearTimeout(pendingExit)
+        pendingExit = null
+      }
+
+      const requestExitForEmptyItems = (props: SuggestionProps<FileSearchResult, MentionAttrs>) => {
+        clearPendingExit()
+        pendingExit = window.setTimeout(() => {
+          pendingExit = null
+
+          if (lastProps === props && props.items.length === 0) {
+            exitSuggestion(props.editor.view, FileMentionPluginKey)
+          }
+        }, 0)
+      }
+
       const selectItem = (index: number) => {
         const item = lastProps?.items[index]
         if (!item || !lastProps) {
@@ -133,13 +154,13 @@ export function createFileMentionSuggestion(searchMentions: SearchMentions) {
         container.replaceChildren()
 
         if (!props.items.length) {
-          const empty = document.createElement('div')
-          empty.className = 'mention-suggestion-empty'
-          empty.textContent = 'Nenhum arquivo encontrado'
-          container.appendChild(empty)
-          void updatePosition()
+          container.style.display = 'none'
+          requestExitForEmptyItems(props)
           return
         }
+
+        clearPendingExit()
+        container.style.display = ''
 
         props.items.forEach((item, index) => {
           const button = document.createElement('button')
@@ -209,21 +230,32 @@ export function createFileMentionSuggestion(searchMentions: SearchMentions) {
         },
         onKeyDown: ({ view, event }: SuggestionKeyDownProps) => {
           if (event.key === 'ArrowDown') {
+            if (!lastProps?.items.length) {
+              return false
+            }
+
             event.preventDefault()
             moveSelection(1)
             return true
           }
 
           if (event.key === 'ArrowUp') {
+            if (!lastProps?.items.length) {
+              return false
+            }
+
             event.preventDefault()
             moveSelection(-1)
             return true
           }
 
           if (event.key === 'Enter' || event.key === 'Tab') {
-            event.preventDefault()
-            selectItem(selectedIndex)
-            return true
+            if (selectItem(selectedIndex)) {
+              event.preventDefault()
+              return true
+            }
+
+            return false
           }
 
           if (event.key === 'Escape') {
@@ -235,6 +267,7 @@ export function createFileMentionSuggestion(searchMentions: SearchMentions) {
           return false
         },
         onExit: () => {
+          clearPendingExit()
           cleanupPosition?.()
           cleanupPosition = null
           container?.remove()

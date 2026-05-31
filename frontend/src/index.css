@@ -189,12 +189,6 @@ select {
   white-space: nowrap;
 }
 
-.mention-suggestion-empty {
-  padding: 0.5rem 0.6rem;
-  color: #66746b;
-  font-size: 0.8rem;
-}
-
 .linked-markdown {
   min-width: 0;
   color: #172126;
