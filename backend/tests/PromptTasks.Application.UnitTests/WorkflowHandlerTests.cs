@@ -59,6 +59,23 @@ public sealed class WorkflowHandlerTests
     }
 
     [Fact]
+    public async Task AdvancePhase_at_last_phase_completes_workflow()
+    {
+        var fixture = new Fixture();
+        var workflow = await fixture.StartAsync();
+        while (workflow.CurrentPhaseName != "Commit/Merge")
+        {
+            workflow = await fixture.AdvanceAsync(workflow.RowVersion);
+        }
+
+        var completed = await fixture.AdvanceAsync(workflow.RowVersion);
+
+        completed.Status.Should().Be(PromptWorkflowStatus.Done);
+        completed.CurrentPhaseName.Should().Be("Commit/Merge");
+        completed.Events.Last().Type.Should().Be(WorkflowEventType.Completed);
+    }
+
+    [Fact]
     public async Task SetPhase_supports_the_review_fix_loop()
     {
         var fixture = new Fixture();

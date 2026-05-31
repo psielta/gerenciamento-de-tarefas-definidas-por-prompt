@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Archive, ArrowRight, FolderGit2, Loader2, PlayCircle } from 'lucide-react'
+import { Archive, ArrowRight, CheckCircle2, FolderGit2, Loader2, PlayCircle } from 'lucide-react'
 import type { DragEvent } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
-import { updatePromptStatus } from '@/api/prompts'
+import { getPrompt, updatePromptStatus } from '@/api/prompts'
 import { queryKeys } from '@/api/query-keys'
 import type { TaskSummary } from '@/api/schemas'
-import { advancePhase, startWorkflow } from '@/api/workflow'
+import { advancePhase, completeWorkflow, getWorkflow, startWorkflow } from '@/api/workflow'
 import { Button } from '@/components/ui/button'
 import { ActorBadge, PhaseBadge } from './badges'
 import { formatRelativeTime } from './constants'
@@ -29,8 +29,22 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
     void queryClient.invalidateQueries({ queryKey: queryKeys.prompts.all })
   }
 
-  const advance = useMutation({
-    mutationFn: () => advancePhase(task.promptId, task.rowVersion ?? ''),
+  const advanceOrComplete = useMutation({
+    mutationFn: async () => {
+      const workflow = await getWorkflow(task.promptId)
+      if (!workflow || workflow.status !== 'Active') {
+        throw new Error('Recarregue o quadro antes de avançar esta tarefa.')
+      }
+
+      const phases = [...workflow.phases].sort((a, b) => a.orderIndex - b.orderIndex)
+      const currentIndex = phases.findIndex((phase) => phase.id === workflow.currentPhaseId)
+      const hasNextPhase = currentIndex >= 0 && currentIndex < phases.length - 1
+      if (!hasNextPhase) {
+        return completeWorkflow(task.promptId, workflow.rowVersion)
+      }
+
+      return advancePhase(task.promptId, workflow.rowVersion)
+    },
     onSuccess: invalidate,
     onError: (error) => toast.error(getErrorMessage(error)),
   })
@@ -42,7 +56,14 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
   })
 
   const archive = useMutation({
-    mutationFn: () => updatePromptStatus(task.promptId, 'Archived', task.promptRowVersion),
+    mutationFn: async () => {
+      const prompt = await getPrompt(task.promptId)
+      if (prompt.status === 'Archived') {
+        return prompt
+      }
+
+      return updatePromptStatus(task.promptId, 'Archived', prompt.rowVersion)
+    },
     onSuccess: (prompt) => {
       queryClient.setQueryData(queryKeys.prompts.detail(task.promptId), prompt)
       queryClient.setQueriesData<unknown>({ queryKey: queryKeys.workflow.all }, (current: unknown) => {
@@ -58,7 +79,11 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
   })
 
   const isHumanTurn = task.currentActor === 'Human'
-  const isBusy = start.isPending || advance.isPending || archive.isPending
+  const currentPhase = task.phases.find((phase) => phase.id === task.currentPhaseId)
+  const isLastPhase = task.workflowStatus === 'Active' && currentPhase
+    ? currentPhase.orderIndex === Math.max(...task.phases.map((phase) => phase.orderIndex))
+    : false
+  const isBusy = start.isPending || advanceOrComplete.isPending || archive.isPending
 
   return (
     <div
@@ -104,9 +129,15 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
               Iniciar
             </Button>
           ) : task.workflowStatus === 'Active' ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => advance.mutate()} disabled={isBusy}>
-              {advance.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-              Avançar
+            <Button type="button" variant="secondary" size="sm" onClick={() => advanceOrComplete.mutate()} disabled={isBusy}>
+              {advanceOrComplete.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isLastPhase ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowRight className="h-3.5 w-3.5" />
+              )}
+              {isLastPhase ? 'Concluir' : 'Avançar'}
             </Button>
           ) : null}
           <Button

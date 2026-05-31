@@ -25,13 +25,27 @@ public sealed class AdvancePhaseHandler(
         var phases = WorkflowMutationHelpers.LoadPhases(context, workflow.Id);
         var current = phases.FirstOrDefault(phase => phase.Id == workflow.CurrentPhaseId);
         var currentOrder = current?.OrderIndex ?? -1;
-        var next = phases.Where(phase => phase.OrderIndex > currentOrder).OrderBy(phase => phase.OrderIndex).FirstOrDefault()
-            ?? throw new ConflictException("The workflow is already at the last phase.");
-
         var now = dateTimeProvider.UtcNow;
-        WorkflowMutationHelpers.EnterPhase(workflow, next, next.DefaultActor, now);
-        WorkflowMutationHelpers.AppendEvent(
-            context, workflow, WorkflowEventType.PhaseChanged, next, next.DefaultActor, NormalizeNote(request.Note), now);
+        var next = phases.Where(phase => phase.OrderIndex > currentOrder).OrderBy(phase => phase.OrderIndex).FirstOrDefault();
+        if (next is null)
+        {
+            workflow.Status = PromptWorkflowStatus.Done;
+            workflow.UpdatedAtUtc = now;
+            WorkflowMutationHelpers.AppendEvent(
+                context,
+                workflow,
+                WorkflowEventType.Completed,
+                current,
+                workflow.CurrentActor,
+                NormalizeNote(request.Note),
+                now);
+        }
+        else
+        {
+            WorkflowMutationHelpers.EnterPhase(workflow, next, next.DefaultActor, now);
+            WorkflowMutationHelpers.AppendEvent(
+                context, workflow, WorkflowEventType.PhaseChanged, next, next.DefaultActor, NormalizeNote(request.Note), now);
+        }
 
         await context.SaveChangesAsync(cancellationToken);
 

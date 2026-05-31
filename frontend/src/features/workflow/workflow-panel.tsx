@@ -141,6 +141,22 @@ export function WorkflowPanel({ promptId, onNavigateTab }: WorkflowPanelProps) {
   const busy = action.isPending || noteMutation.isPending || phasesMutation.isPending
   const rowVersion = workflow.rowVersion
 
+  const advanceOrComplete = async () => {
+    const latest = await getWorkflow(promptId)
+    if (!latest || latest.status !== 'Active') {
+      throw new Error('Recarregue o fluxo antes de avançar.')
+    }
+
+    const latestPhases = [...latest.phases].sort((a, b) => a.orderIndex - b.orderIndex)
+    const latestCurrentIndex = latestPhases.findIndex((phase) => phase.id === latest.currentPhaseId)
+    const hasNextPhase = latestCurrentIndex >= 0 && latestCurrentIndex < latestPhases.length - 1
+    if (!hasNextPhase) {
+      return completeWorkflow(promptId, latest.rowVersion)
+    }
+
+    return advancePhase(promptId, latest.rowVersion)
+  }
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 rounded-lg border border-[#d9dfd5] bg-white p-4">
@@ -173,11 +189,11 @@ export function WorkflowPanel({ promptId, onNavigateTab }: WorkflowPanelProps) {
             <Button
               type="button"
               size="sm"
-              disabled={busy || !nextPhase}
-              onClick={() => action.mutate(() => advancePhase(promptId, rowVersion))}
+              disabled={busy}
+              onClick={() => action.mutate(advanceOrComplete)}
             >
-              <ArrowRight className="h-4 w-4" />
-              Avançar
+              {nextPhase ? <ArrowRight className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+              {nextPhase ? 'Avançar' : 'Concluir'}
             </Button>
             <label className="flex items-center gap-1.5 text-xs text-[#66746b]">
               Mudar fase
