@@ -44,7 +44,10 @@ public sealed class GetPromptsHandler(IApplicationDbContext context, ICurrentUse
         if (!string.IsNullOrWhiteSpace(request.Q))
         {
             var term = request.Q.Trim();
-            query = query.Where(prompt => prompt.Title.Contains(term) || prompt.Content.Contains(term));
+            query = query.Where(prompt =>
+                prompt.Title.Contains(term) ||
+                prompt.Content.Contains(term) ||
+                (prompt.TaskNumber != null && prompt.TaskNumber.Contains(term)));
         }
 
         var prompts = query

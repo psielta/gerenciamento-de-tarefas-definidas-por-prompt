@@ -28,6 +28,7 @@ export const workingDirectorySchema = z.object({
   absolutePath: z.string(),
   respectGitignore: z.boolean(),
   enableAiContext: z.boolean(),
+  taskNumberPattern: z.string().nullable(),
   createdAtUtc: z.string(),
   updatedAtUtc: z.string(),
 })
@@ -57,6 +58,7 @@ export const promptSchema = z.object({
   id: z.string().uuid(),
   workingDirectoryId: z.string().uuid(),
   parentPromptId: z.string().uuid().nullable(),
+  taskNumber: z.string().nullable(),
   title: z.string(),
   content: z.string(),
   targetAgent: targetAgentSchema,
@@ -267,6 +269,7 @@ export const taskSummarySchema = z.object({
   promptId: z.string().uuid(),
   workingDirectoryId: z.string().uuid(),
   workingDirectoryName: z.string(),
+  taskNumber: z.string().nullable(),
   title: z.string(),
   promptStatus: promptStatusSchema,
   workflowStatus: promptWorkflowStatusSchema.nullable(),

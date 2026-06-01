@@ -6,6 +6,7 @@ public sealed record PromptDto(
     Guid Id,
     Guid WorkingDirectoryId,
     Guid? ParentPromptId,
+    string? TaskNumber,
     string Title,
     string Content,
     TargetAgent TargetAgent,

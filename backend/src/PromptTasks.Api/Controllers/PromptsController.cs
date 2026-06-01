@@ -6,6 +6,7 @@ using PromptTasks.Application.Features.Prompts.Commands.DeletePrompt;
 using PromptTasks.Application.Features.Prompts.Commands.UpdatePrompt;
 using PromptTasks.Application.Features.Prompts.Commands.UpdatePromptStatus;
 using PromptTasks.Application.Features.Prompts.Queries.GetPrompt;
+using PromptTasks.Application.Features.Prompts.Queries.GetPromptByTaskNumber;
 using PromptTasks.Application.Features.Prompts.Queries.GetPrompts;
 using PromptTasks.Application.Features.Prompts.Queries.GetPromptVersions;
 using PromptTasks.Domain.Prompts;
@@ -31,6 +32,13 @@ public sealed class PromptsController(ISender sender) : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PromptDto>> GetById(Guid id, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new GetPromptQuery(id), cancellationToken));
+
+    [HttpGet("by-task-number")]
+    public async Task<ActionResult<PromptDto>> GetByTaskNumber(
+        [FromQuery] Guid workingDirectoryId,
+        [FromQuery] string taskNumber,
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new GetPromptByTaskNumberQuery(workingDirectoryId, taskNumber), cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<PromptDto>> Create(CreatePromptRequest request, CancellationToken cancellationToken)

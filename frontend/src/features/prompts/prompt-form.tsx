@@ -85,6 +85,14 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
     onSuccess: async (prompt) => {
       await afterSave(prompt)
       toast.success('Prompt criado.')
+      if (prompt.taskNumber) {
+        await navigate({
+          to: '/workspaces/$workspaceId/tasks/$taskNumber',
+          params: { workspaceId: workingDirectoryId, taskNumber: prompt.taskNumber },
+        })
+        return
+      }
+
       await navigate({
         to: '/workspaces/$workspaceId/prompts/$promptId',
         params: { workspaceId: workingDirectoryId, promptId: prompt.id },

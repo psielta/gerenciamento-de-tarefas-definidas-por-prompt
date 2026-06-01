@@ -8,6 +8,7 @@ public sealed class Prompt : AuditableEntity
 {
     public Guid WorkingDirectoryId { get; set; }
     public Guid? ParentPromptId { get; set; }
+    public string? TaskNumber { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public TargetAgent TargetAgent { get; set; } = TargetAgent.ClaudeCode;

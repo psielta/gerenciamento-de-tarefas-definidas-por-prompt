@@ -32,6 +32,7 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkspaceFileService(),
             notifier,
             new FakeWorkflowNotifier(),
+            new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
             new FakeDateTimeProvider());
 
@@ -66,6 +67,7 @@ public sealed class CreatePromptHandlerTests
             _ => Task.FromResult(new PromptDto(
                 Guid.Empty,
                 Guid.Empty,
+                null,
                 null,
                 "",
                 "",
@@ -107,6 +109,7 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkspaceFileService(),
             new FakePromptNotifier(),
             new FakeWorkflowNotifier(),
+            new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
             new FakeDateTimeProvider());
 
@@ -123,7 +126,87 @@ public sealed class CreatePromptHandlerTests
             CancellationToken.None);
 
         result.ParentPromptId.Should().Be(parent.Id);
+        result.TaskNumber.Should().BeNull();
         context.PromptItems.Should().ContainSingle(prompt => prompt.ParentPromptId == parent.Id);
+    }
+
+    [Fact]
+    public async Task Handle_generates_task_number_for_root_prompt_when_pattern_is_configured()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = new WorkingDirectory
+        {
+            Id = Guid.CreateVersion7(),
+            Name = "repo",
+            AbsolutePath = "C:/repo",
+            TaskNumberPattern = "BP{N:000}{Date}",
+            OwnerId = User.SystemUserId
+        };
+        context.WorkingDirectoryItems.Add(directory);
+        var sequenceProvider = new FakeDailyTaskSequenceProvider(12);
+        var handler = new CreatePromptHandler(
+            context,
+            new FakeWorkspaceFileService(),
+            new FakePromptNotifier(),
+            new FakeWorkflowNotifier(),
+            sequenceProvider,
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider());
+
+        var result = await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                null,
+                "Root task",
+                "Create a plan",
+                TargetAgent.Codex,
+                PromptKind.General,
+                PromptStatus.Draft,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        result.TaskNumber.Should().Be("BP012300526");
+        context.PromptItems.Should().ContainSingle(prompt => prompt.TaskNumber == "BP012300526");
+        sequenceProvider.Requests.Should().ContainSingle(request =>
+            request.WorkingDirectoryId == directory.Id && request.DateUtc == new DateOnly(2026, 5, 30));
+    }
+
+    [Fact]
+    public async Task Handle_does_not_generate_task_number_without_pattern()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = new WorkingDirectory
+        {
+            Id = Guid.CreateVersion7(),
+            Name = "repo",
+            AbsolutePath = "C:/repo",
+            OwnerId = User.SystemUserId
+        };
+        context.WorkingDirectoryItems.Add(directory);
+        var sequenceProvider = new FakeDailyTaskSequenceProvider();
+        var handler = new CreatePromptHandler(
+            context,
+            new FakeWorkspaceFileService(),
+            new FakePromptNotifier(),
+            new FakeWorkflowNotifier(),
+            sequenceProvider,
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider());
+
+        var result = await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                null,
+                "Root task",
+                "Create a plan",
+                TargetAgent.Codex,
+                PromptKind.General,
+                PromptStatus.Draft,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        result.TaskNumber.Should().BeNull();
+        sequenceProvider.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -159,6 +242,7 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkspaceFileService(),
             new FakePromptNotifier(),
             new FakeWorkflowNotifier(),
+            new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
             new FakeDateTimeProvider());
 
@@ -351,6 +435,17 @@ public sealed class CreatePromptHandlerTests
     private sealed class FakeCurrentUser : ICurrentUser
     {
         public Guid UserId => User.SystemUserId;
+    }
+
+    private sealed class FakeDailyTaskSequenceProvider(int next = 1) : IDailyTaskSequenceProvider
+    {
+        public List<(Guid WorkingDirectoryId, DateOnly DateUtc)> Requests { get; } = new();
+
+        public Task<int> NextAsync(Guid workingDirectoryId, DateOnly dateUtc, CancellationToken cancellationToken)
+        {
+            Requests.Add((workingDirectoryId, dateUtc));
+            return Task.FromResult(next);
+        }
     }
 
     private sealed class FakeDateTimeProvider : IDateTimeProvider

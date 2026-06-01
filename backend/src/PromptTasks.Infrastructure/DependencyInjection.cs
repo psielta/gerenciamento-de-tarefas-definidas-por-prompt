@@ -22,6 +22,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IDailyTaskSequenceProvider, DailyTaskSequenceProvider>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ICurrentUser, SystemCurrentUser>();
         services.AddMemoryCache();

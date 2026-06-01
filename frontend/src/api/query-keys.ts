@@ -30,6 +30,8 @@ export const queryKeys = {
     all: ['prompts'] as const,
     list: (filters: PromptFilters) => ['prompts', 'list', filters] as const,
     detail: (id: string) => ['prompts', id] as const,
+    byTaskNumber: (workingDirectoryId: string, taskNumber: string) =>
+      ['prompts', 'task-number', workingDirectoryId, taskNumber] as const,
     versions: (id: string) => ['prompts', id, 'versions'] as const,
   },
   promptTemplates: {

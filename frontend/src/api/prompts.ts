@@ -60,6 +60,12 @@ export async function getPrompt(id: string): Promise<Prompt> {
   return promptSchema.parse(data)
 }
 
+export async function getPromptByTaskNumber(workingDirectoryId: string, taskNumber: string): Promise<Prompt> {
+  const searchParams = new URLSearchParams({ workingDirectoryId, taskNumber })
+  const data = await api.get('prompts/by-task-number', { searchParams }).json<unknown>()
+  return promptSchema.parse(data)
+}
+
 export async function createPrompt(payload: PromptPayload): Promise<Prompt> {
   const data = await api
     .post('prompts', {

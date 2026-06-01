@@ -10,6 +10,7 @@ public sealed class WorkingDirectory : AuditableEntity
     public string AbsolutePath { get; set; } = string.Empty;
     public bool RespectGitignore { get; set; } = true;
     public bool EnableAiContext { get; set; }
+    public string? TaskNumberPattern { get; set; }
 
     public User? Owner { get; set; }
     public ICollection<Prompt> Prompts { get; } = new List<Prompt>();

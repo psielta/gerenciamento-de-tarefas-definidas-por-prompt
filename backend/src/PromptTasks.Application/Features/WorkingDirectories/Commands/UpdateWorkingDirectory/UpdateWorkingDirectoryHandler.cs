@@ -44,6 +44,10 @@ public sealed class UpdateWorkingDirectoryHandler(
         directory.AbsolutePath = path.CanonicalPath;
         directory.RespectGitignore = request.RespectGitignore;
         directory.EnableAiContext = request.EnableAiContext;
+        if (request.TaskNumberPattern is not null)
+        {
+            directory.TaskNumberPattern = NormalizePattern(request.TaskNumberPattern);
+        }
 
         if (contextFlagChanged || (request.EnableAiContext && pathChanged))
         {
@@ -72,4 +76,7 @@ public sealed class UpdateWorkingDirectoryHandler(
         await context.SaveChangesAsync(cancellationToken);
         return directory.ToDto();
     }
+
+    private static string? NormalizePattern(string pattern) =>
+        string.IsNullOrWhiteSpace(pattern) ? null : pattern.Trim();
 }

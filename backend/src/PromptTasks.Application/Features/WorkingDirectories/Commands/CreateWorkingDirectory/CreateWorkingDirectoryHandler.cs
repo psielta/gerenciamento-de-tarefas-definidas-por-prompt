@@ -35,6 +35,7 @@ public sealed class CreateWorkingDirectoryHandler(
             AbsolutePath = path.CanonicalPath,
             RespectGitignore = request.RespectGitignore,
             EnableAiContext = request.EnableAiContext,
+            TaskNumberPattern = NormalizePattern(request.TaskNumberPattern),
             OwnerId = currentUser.UserId
         };
 
@@ -43,4 +44,7 @@ public sealed class CreateWorkingDirectoryHandler(
 
         return workingDirectory.ToDto();
     }
+
+    private static string? NormalizePattern(string? pattern) =>
+        string.IsNullOrWhiteSpace(pattern) ? null : pattern.Trim();
 }

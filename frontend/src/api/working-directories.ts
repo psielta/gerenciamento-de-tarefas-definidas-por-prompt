@@ -12,6 +12,7 @@ export type WorkingDirectoryPayload = {
   absolutePath: string
   respectGitignore: boolean
   enableAiContext: boolean
+  taskNumberPattern?: string | null
 }
 
 export async function listWorkingDirectories() {

@@ -15,6 +15,7 @@ function makeTask(partial: Partial<TaskSummary>): TaskSummary {
     promptId: `prompt-${counter}`,
     workingDirectoryId: `wd-${counter}`,
     workingDirectoryName: 'repo',
+    taskNumber: null,
     title: `Tarefa ${counter}`,
     promptStatus: 'Draft',
     workflowStatus: 'Active',

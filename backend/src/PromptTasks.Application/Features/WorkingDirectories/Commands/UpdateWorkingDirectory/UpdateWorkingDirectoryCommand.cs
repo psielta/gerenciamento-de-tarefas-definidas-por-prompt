@@ -8,4 +8,5 @@ public sealed record UpdateWorkingDirectoryCommand(
     string Name,
     string AbsolutePath,
     bool RespectGitignore,
-    bool EnableAiContext) : IRequest<WorkingDirectoryDto>;
+    bool EnableAiContext,
+    string? TaskNumberPattern = null) : IRequest<WorkingDirectoryDto>;
