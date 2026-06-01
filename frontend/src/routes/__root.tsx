@@ -45,7 +45,7 @@ function RootLayout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6">
+      <main className="mx-auto grid min-w-0 w-full max-w-7xl gap-6 px-4 py-6">
         <Outlet />
       </main>
     </div>

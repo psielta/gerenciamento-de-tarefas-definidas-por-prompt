@@ -220,7 +220,9 @@ export function Board() {
       }}
       onDrop={(event) => handleDrop(column, event)}
       className={`gap-3 rounded-lg p-2 transition-colors ${
-        layout === 'kanban' ? 'flex w-72 shrink-0 flex-col' : 'grid border border-border bg-card'
+        layout === 'kanban'
+          ? 'flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col sm:w-[calc((100vw-3rem)/2)] lg:w-[calc((100vw-4rem)/3)] xl:w-[18.75rem]'
+          : 'grid border border-border bg-card'
       } ${dragOverColumnId === column.id ? 'bg-accent' : ''}`}
     >
       <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
@@ -255,7 +257,7 @@ export function Board() {
   )
 
   return (
-    <section className="grid gap-2">
+    <section className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => setFiltersOpen((current) => !current)}>
@@ -394,7 +396,7 @@ export function Board() {
               scrollBoard(1)
             }
           }}
-          className="max-h-[calc(100vh-9rem)] overflow-auto rounded-lg pb-2 pr-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="h-[calc(100vh-10rem)] min-h-[24rem] min-w-0 snap-x snap-mandatory overflow-auto rounded-lg pb-2 pr-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <div className="flex min-w-max gap-4 pb-2">
             {columns.map((column) => renderColumn(column, 'kanban'))}

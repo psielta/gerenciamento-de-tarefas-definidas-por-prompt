@@ -10,6 +10,21 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { usePromptHub } from '@/realtime/prompt-hub'
 
+const WORKSPACE_NAME_MAX_LENGTH = 48
+
+function formatWorkspaceName(name?: string) {
+  if (!name) {
+    return ''
+  }
+
+  const normalizedName = name.trim()
+  if (normalizedName.length <= WORKSPACE_NAME_MAX_LENGTH) {
+    return normalizedName
+  }
+
+  return `${normalizedName.slice(0, WORKSPACE_NAME_MAX_LENGTH - 3).trimEnd()}...`
+}
+
 export const Route = createFileRoute('/workspaces/$workspaceId')({
   component: WorkspaceLayout,
 })
@@ -27,6 +42,7 @@ function WorkspaceLayout() {
     queryKey: queryKeys.workingDirectories.detail(workspaceId),
     queryFn: () => getWorkingDirectory(workspaceId),
   })
+  const workspaceName = formatWorkspaceName(workspaceQuery.data?.name)
 
   const aiContextMutation = useMutation({
     mutationFn: (enableAiContext: boolean) => {
@@ -69,7 +85,9 @@ function WorkspaceLayout() {
             <Link to="/workspaces/$workspaceId" params={{ workspaceId }}>
               <Button type="button" variant="ghost" size="sm" className="-ml-2 mb-2 max-w-[16rem]">
                 <ArrowLeft className="h-4 w-4 shrink-0" />
-                <span className="truncate">{workspaceQuery.data?.name ?? 'Voltar'}</span>
+                <span className="truncate" title={workspaceQuery.data?.name}>
+                  {workspaceName || 'Voltar'}
+                </span>
               </Button>
             </Link>
           )}
@@ -80,7 +98,9 @@ function WorkspaceLayout() {
             </div>
           ) : (
             <>
-              <h1 className="truncate text-2xl font-semibold text-foreground">{workspaceQuery.data?.name}</h1>
+              <h1 className="truncate text-2xl font-semibold text-foreground" title={workspaceQuery.data?.name}>
+                {workspaceName}
+              </h1>
               <p className="mt-1 truncate text-sm text-muted-foreground">{workspaceQuery.data?.absolutePath}</p>
             </>
           )}
