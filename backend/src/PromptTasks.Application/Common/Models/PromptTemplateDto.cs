@@ -7,4 +7,12 @@ public sealed record PromptTemplateDto(
     string DisplayName,
     string Description,
     TargetAgent DefaultTargetAgent,
-    PromptKind DefaultKind);
+    PromptKind DefaultKind,
+    PromptTemplateInputDto? Input);
+
+public sealed record PromptTemplateInputDto(
+    string Key,
+    string Label,
+    string Placeholder,
+    string HelpText,
+    bool Required);

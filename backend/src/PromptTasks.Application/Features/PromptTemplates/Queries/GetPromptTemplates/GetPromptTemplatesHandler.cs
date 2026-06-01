@@ -17,7 +17,15 @@ public sealed class GetPromptTemplatesHandler(IPromptTemplateCatalog catalog)
                 template.DisplayName,
                 template.Description,
                 template.DefaultTargetAgent,
-                template.DefaultKind))
+                template.DefaultKind,
+                template.Input is null
+                    ? null
+                    : new PromptTemplateInputDto(
+                        template.Input.Key,
+                        template.Input.Label,
+                        template.Input.Placeholder,
+                        template.Input.HelpText,
+                        template.Input.Required)))
             .ToList();
 
         return Task.FromResult<IReadOnlyList<PromptTemplateDto>>(templates);

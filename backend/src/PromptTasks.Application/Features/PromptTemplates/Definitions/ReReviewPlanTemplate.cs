@@ -9,6 +9,7 @@ public sealed class ReReviewPlanTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para revalidar um plano apos Claude corrigir pontos apontados anteriormente.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.Planning;
+    public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,

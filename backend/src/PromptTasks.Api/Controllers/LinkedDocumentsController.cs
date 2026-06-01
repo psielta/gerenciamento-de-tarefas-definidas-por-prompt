@@ -72,7 +72,7 @@ public sealed class LinkedDocumentsController(ISender sender) : ControllerBase
         Guid id,
         GeneratePromptDraftRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await sender.Send(new GeneratePromptDraftCommand(id, request.TemplateKey), cancellationToken));
+        Ok(await sender.Send(new GeneratePromptDraftCommand(id, request.TemplateKey, request.PullRequest), cancellationToken));
 
     [HttpDelete("linked-documents/{id:guid}")]
     public async Task<IActionResult> Remove(Guid id, CancellationToken cancellationToken)
@@ -86,5 +86,5 @@ public sealed class LinkedDocumentsController(ISender sender) : ControllerBase
         LinkedDocumentType DocumentType = LinkedDocumentType.ClaudeCodePlan,
         string? DisplayName = null);
 
-    public sealed record GeneratePromptDraftRequest(PromptTemplateKey TemplateKey);
+    public sealed record GeneratePromptDraftRequest(PromptTemplateKey TemplateKey, string? PullRequest = null);
 }

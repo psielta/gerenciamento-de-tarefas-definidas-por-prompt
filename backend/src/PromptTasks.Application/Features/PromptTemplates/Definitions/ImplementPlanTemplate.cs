@@ -9,6 +9,7 @@ public sealed class ImplementPlanTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para implementar o plano aprovado.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,

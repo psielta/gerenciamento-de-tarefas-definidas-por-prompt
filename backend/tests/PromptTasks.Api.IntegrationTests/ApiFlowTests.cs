@@ -230,6 +230,16 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             template.Key == PromptTemplateKey.ReReviewPlan &&
             template.DefaultTargetAgent == TargetAgent.Codex &&
             template.DefaultKind == PromptKind.Planning);
+        templates.Should().Contain(template =>
+            template.Key == PromptTemplateKey.ImplementPlanInWorktree &&
+            template.DefaultTargetAgent == TargetAgent.Codex &&
+            template.DefaultKind == PromptKind.General);
+        templates.Should().Contain(template =>
+            template.Key == PromptTemplateKey.ReviewPullRequest &&
+            template.DefaultTargetAgent == TargetAgent.Codex &&
+            template.DefaultKind == PromptKind.General &&
+            template.Input != null &&
+            template.Input.Key == "pullRequest");
 
         var wdResponse = await client.PostAsJsonAsync(
             "/api/working-directories",
@@ -275,6 +285,15 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
         draft.Kind.Should().Be(PromptKind.Planning);
         draft.Content.Should().Be($"Dado o plano \"{planPath}\", valide o plano, aprove-o ou aponte melhorias.");
 
+        var prDraftResponse = await client.PostAsJsonAsync(
+            $"/api/linked-documents/{linked.Id}/prompt-drafts",
+            new { templateKey = PromptTemplateKey.ReviewPullRequest, pullRequest = "42" },
+            JsonOptions);
+        prDraftResponse.EnsureSuccessStatusCode();
+        var prDraft = await prDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
+        prDraft!.Title.Should().Be("Revisar PR #42: review-plan.md");
+        prDraft.Content.Should().Contain($"Revise a PR #42 que implementa o plano `{planPath}`.");
+
         var generatedPromptResponse = await client.PostAsJsonAsync(
             "/api/prompts",
             new
@@ -310,6 +329,12 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             new { templateKey = 999 },
             JsonOptions);
         invalidTemplateResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var missingPrResponse = await client.PostAsJsonAsync(
+            $"/api/linked-documents/{linked.Id}/prompt-drafts",
+            new { templateKey = PromptTemplateKey.ReviewPullRequest },
+            JsonOptions);
+        missingPrResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var missingDocumentResponse = await client.PostAsJsonAsync(
             $"/api/linked-documents/{Guid.CreateVersion7()}/prompt-drafts",

@@ -14,10 +14,11 @@ export async function listPromptTemplates(): Promise<PromptTemplate[]> {
 export async function renderPromptDraft(
   linkedDocumentId: string,
   templateKey: string,
+  options?: { pullRequest?: string },
 ): Promise<GeneratedPromptDraft> {
   const data = await api
     .post(`linked-documents/${linkedDocumentId}/prompt-drafts`, {
-      json: { templateKey },
+      json: { templateKey, pullRequest: options?.pullRequest },
     })
     .json<unknown>()
 

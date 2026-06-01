@@ -25,7 +25,8 @@ public sealed class GeneratePromptDraftHandler(
             document.AbsolutePath,
             displayName,
             prompt.Content,
-            ct => LoadLatestPlanContentAsync(document.Id, ct));
+            ct => LoadLatestPlanContentAsync(document.Id, ct),
+            request.PullRequest);
         var rendered = await template.RenderAsync(templateContext, cancellationToken);
 
         return new GeneratedPromptDraftDto(

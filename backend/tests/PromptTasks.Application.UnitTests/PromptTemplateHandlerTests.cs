@@ -27,11 +27,15 @@ public sealed class PromptTemplateHandlerTests
                 PromptTemplateKey.ReviewPlan,
                 PromptTemplateKey.ImplementPlan,
                 PromptTemplateKey.ReviewPlanWithParentPrompt,
-                PromptTemplateKey.ReReviewPlan);
+                PromptTemplateKey.ReReviewPlan,
+                PromptTemplateKey.ImplementPlanInWorktree,
+                PromptTemplateKey.ReviewPullRequest);
         catalog.Get(PromptTemplateKey.ReviewPlan).Should().BeOfType<ReviewPlanTemplate>();
         catalog.Get(PromptTemplateKey.ImplementPlan).Should().BeOfType<ImplementPlanTemplate>();
         catalog.Get(PromptTemplateKey.ReviewPlanWithParentPrompt).Should().BeOfType<ReviewPlanWithParentPromptTemplate>();
         catalog.Get(PromptTemplateKey.ReReviewPlan).Should().BeOfType<ReReviewPlanTemplate>();
+        catalog.Get(PromptTemplateKey.ImplementPlanInWorktree).Should().BeOfType<ImplementPlanInWorktreeTemplate>();
+        catalog.Get(PromptTemplateKey.ReviewPullRequest).Should().BeOfType<ReviewPullRequestTemplate>();
     }
 
     [Fact]
@@ -145,6 +149,46 @@ public sealed class PromptTemplateHandlerTests
     }
 
     [Fact]
+    public async Task GeneratePromptDraft_implement_plan_in_worktree_requests_pr_creation()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context, User.SystemUserId);
+        var document = SeedLinkedDocument(context, prompt, "C:/plans/worktree-plan.md", "worktree-plan.md");
+        var handler = new GeneratePromptDraftHandler(context, CreateCatalog(), new FakeCurrentUser());
+
+        var result = await handler.Handle(
+            new GeneratePromptDraftCommand(document.Id, PromptTemplateKey.ImplementPlanInWorktree),
+            CancellationToken.None);
+
+        result.TemplateKey.Should().Be(PromptTemplateKey.ImplementPlanInWorktree);
+        result.Title.Should().Be("Implementar em worktree: worktree-plan.md");
+        result.Content.Should().Contain("Implemente o plano `C:/plans/worktree-plan.md` por completo em uma worktree separada.");
+        result.Content.Should().Contain("crie uma PR");
+        result.TargetAgent.Should().Be(TargetAgent.Codex);
+        result.Kind.Should().Be(PromptKind.General);
+    }
+
+    [Fact]
+    public async Task GeneratePromptDraft_review_pull_request_uses_pr_reference()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context, User.SystemUserId);
+        var document = SeedLinkedDocument(context, prompt, "C:/plans/pr-plan.md", "pr-plan.md");
+        var handler = new GeneratePromptDraftHandler(context, CreateCatalog(), new FakeCurrentUser());
+
+        var result = await handler.Handle(
+            new GeneratePromptDraftCommand(document.Id, PromptTemplateKey.ReviewPullRequest, "123"),
+            CancellationToken.None);
+
+        result.TemplateKey.Should().Be(PromptTemplateKey.ReviewPullRequest);
+        result.Title.Should().Be("Revisar PR #123: pr-plan.md");
+        result.Content.Should().Contain("Revise a PR #123 que implementa o plano `C:/plans/pr-plan.md`.");
+        result.Content.Should().Contain("Priorize bugs, riscos comportamentais e testes faltantes.");
+        result.TargetAgent.Should().Be(TargetAgent.Codex);
+        result.Kind.Should().Be(PromptKind.General);
+    }
+
+    [Fact]
     public async Task GeneratePromptDraft_rejects_document_from_another_owner()
     {
         var context = new FakeApplicationDbContext();
@@ -182,13 +226,38 @@ public sealed class PromptTemplateHandlerTests
         await act.Should().ThrowAsync<ValidationException>();
     }
 
+    [Fact]
+    public async Task GeneratePromptDraft_validation_requires_pr_for_review_pull_request()
+    {
+        var behavior = new ValidationBehavior<GeneratePromptDraftCommand, GeneratedPromptDraftDto>(
+            new[] { new GeneratePromptDraftValidator() });
+        var invalid = new GeneratePromptDraftCommand(Guid.CreateVersion7(), PromptTemplateKey.ReviewPullRequest);
+
+        var act = () => behavior.Handle(
+            invalid,
+            _ => Task.FromResult(new GeneratedPromptDraftDto(
+                invalid.TemplateKey,
+                invalid.LinkedDocumentId,
+                Guid.CreateVersion7(),
+                Guid.CreateVersion7(),
+                "",
+                "",
+                TargetAgent.Codex,
+                PromptKind.General)),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ValidationException>();
+    }
+
     private static PromptTemplateCatalog CreateCatalog() =>
         new(new IPromptTemplateDefinition[]
         {
             new ImplementPlanTemplate(),
             new ReviewPlanTemplate(),
             new ReviewPlanWithParentPromptTemplate(),
-            new ReReviewPlanTemplate()
+            new ReReviewPlanTemplate(),
+            new ImplementPlanInWorktreeTemplate(),
+            new ReviewPullRequestTemplate()
         });
 
     private static Prompt SeedPrompt(

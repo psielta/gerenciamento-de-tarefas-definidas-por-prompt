@@ -9,6 +9,7 @@ public interface IPromptTemplateDefinition
     string Description { get; }
     TargetAgent DefaultTargetAgent { get; }
     PromptKind DefaultKind { get; }
+    PromptTemplateInputDefinition? Input { get; }
 
     Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,
@@ -16,3 +17,10 @@ public interface IPromptTemplateDefinition
 }
 
 public sealed record RenderedPromptTemplate(string Title, string Content);
+
+public sealed record PromptTemplateInputDefinition(
+    string Key,
+    string Label,
+    string Placeholder,
+    string HelpText,
+    bool Required = true);

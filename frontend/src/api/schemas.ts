@@ -118,12 +118,21 @@ export const linkedDocumentVersionSchema = z.object({
   createdAtUtc: z.string(),
 })
 
+export const promptTemplateInputSchema = z.object({
+  key: z.string().min(1),
+  label: z.string(),
+  placeholder: z.string(),
+  helpText: z.string(),
+  required: z.boolean(),
+})
+
 export const promptTemplateSchema = z.object({
   key: promptTemplateKeySchema,
   displayName: z.string(),
   description: z.string(),
   defaultTargetAgent: targetAgentSchema,
   defaultKind: promptKindSchema,
+  input: promptTemplateInputSchema.nullable().optional(),
 })
 
 export const promptDraftSchema = z.object({
@@ -148,6 +157,7 @@ export type LinkedDocument = z.infer<typeof linkedDocumentSchema>
 export type LinkedDocumentContent = z.infer<typeof linkedDocumentContentSchema>
 export type LinkedDocumentVersion = z.infer<typeof linkedDocumentVersionSchema>
 export type PromptTemplate = z.infer<typeof promptTemplateSchema>
+export type PromptTemplateInput = z.infer<typeof promptTemplateInputSchema>
 export type GeneratedPromptDraft = z.infer<typeof promptDraftSchema>
 
 export const workingDirectoryListSchema = z.array(workingDirectorySchema)

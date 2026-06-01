@@ -24,6 +24,8 @@ public static class DependencyInjection
         services.AddSingleton<IPromptTemplateDefinition, ImplementPlanTemplate>();
         services.AddSingleton<IPromptTemplateDefinition, ReviewPlanWithParentPromptTemplate>();
         services.AddSingleton<IPromptTemplateDefinition, ReReviewPlanTemplate>();
+        services.AddSingleton<IPromptTemplateDefinition, ImplementPlanInWorktreeTemplate>();
+        services.AddSingleton<IPromptTemplateDefinition, ReviewPullRequestTemplate>();
         services.AddSingleton<IPromptTemplateCatalog, PromptTemplateCatalog>();
 
         return services;

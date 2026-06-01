@@ -9,6 +9,7 @@ public sealed class ReviewPlanWithParentPromptTemplate : IPromptTemplateDefiniti
     public string Description => "Gera um prompt de revisao incluindo o prompt original que originou o plano.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.Planning;
+    public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,

@@ -41,6 +41,9 @@ export function GeneratePromptDrawer({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [contentOverride, setContentOverride] = useState<string | null>(null)
   const [editorMentions, setEditorMentions] = useState<FileMention[] | null>(null)
+  const templateInput = template.input ?? null
+  const [templateInputValue, setTemplateInputValue] = useState('')
+  const [confirmedTemplateInput, setConfirmedTemplateInput] = useState<string | null>(templateInput ? null : '')
   const form = useForm<PromptFormValues>({
     resolver: zodResolver(promptFormSchema),
     defaultValues: {
@@ -52,28 +55,36 @@ export function GeneratePromptDrawer({
     },
   })
 
+  const normalizedTemplateInput = templateInputValue.trim()
+  const activeTemplateInput = templateInput ? confirmedTemplateInput : undefined
+  const canRenderDraft = !templateInput || Boolean(confirmedTemplateInput)
+  const hasChangedTemplateInput = Boolean(
+    templateInput && confirmedTemplateInput !== null && normalizedTemplateInput !== confirmedTemplateInput,
+  )
   const draftQuery = useQuery({
-    queryKey: queryKeys.promptTemplates.draft(linkedDocumentId, template.key),
-    queryFn: () => renderPromptDraft(linkedDocumentId, template.key),
+    queryKey: queryKeys.promptTemplates.draft(linkedDocumentId, template.key, activeTemplateInput ?? undefined),
+    queryFn: () => renderPromptDraft(linkedDocumentId, template.key, { pullRequest: activeTemplateInput ?? undefined }),
+    enabled: canRenderDraft,
     retry: false,
   })
-  const editorContent = contentOverride ?? draftQuery.data?.content ?? ''
+  const activeDraft = hasChangedTemplateInput ? undefined : draftQuery.data
+  const editorContent = contentOverride ?? activeDraft?.content ?? ''
 
   useEffect(() => {
-    if (!draftQuery.data) {
+    if (!activeDraft) {
       return
     }
 
     form.reset({
-      title: draftQuery.data.title,
-      targetAgent: draftQuery.data.targetAgent,
-      kind: draftQuery.data.kind,
+      title: activeDraft.title,
+      targetAgent: activeDraft.targetAgent,
+      kind: activeDraft.kind,
       status: 'Draft',
-      content: draftQuery.data.content,
+      content: activeDraft.content,
     })
 
     window.setTimeout(() => titleInputRef.current?.focus(), 0)
-  }, [draftQuery.data, form])
+  }, [activeDraft, form])
 
   const afterSave = async (prompt: Prompt) => {
     queryClient.setQueryData(queryKeys.prompts.detail(prompt.id), prompt)
@@ -83,13 +94,13 @@ export function GeneratePromptDrawer({
 
   const createMutation = useMutation({
     mutationFn: ({ values }: CreateGeneratedPromptPayload) => {
-      if (!draftQuery.data) {
+      if (!activeDraft) {
         throw new Error('Rascunho ainda nao foi gerado.')
       }
 
       return createPrompt({
-        workingDirectoryId: draftQuery.data.workingDirectoryId,
-        parentPromptId: draftQuery.data.parentPromptId,
+        workingDirectoryId: activeDraft.workingDirectoryId,
+        parentPromptId: activeDraft.parentPromptId,
         title: values.title,
         content: values.content,
         targetAgent: values.targetAgent,
@@ -129,6 +140,21 @@ export function GeneratePromptDrawer({
 
     onClose()
   }, [isBusy, isDirty, onClose])
+
+  const submitTemplateInput = () => {
+    if (!templateInput) {
+      return
+    }
+
+    if (templateInput.required && !normalizedTemplateInput) {
+      toast.error(`Informe ${templateInput.label}.`)
+      return
+    }
+
+    setContentOverride(null)
+    setEditorMentions(null)
+    setConfirmedTemplateInput(normalizedTemplateInput)
+  }
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -178,7 +204,33 @@ export function GeneratePromptDrawer({
         </div>
 
         <div className="min-h-0 overflow-hidden p-4">
-          {draftQuery.isLoading ? (
+          {templateInput ? (
+            <div className="mb-4 grid gap-2 rounded-md border border-border bg-background p-3">
+              <FormField label={templateInput.label} htmlFor="generated-prompt-template-input">
+                <div className="flex gap-2">
+                  <Input
+                    id="generated-prompt-template-input"
+                    value={templateInputValue}
+                    onChange={(event) => setTemplateInputValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        submitTemplateInput()
+                      }
+                    }}
+                    placeholder={templateInput.placeholder}
+                    disabled={isBusy}
+                  />
+                  <Button type="button" variant="secondary" onClick={submitTemplateInput} disabled={isBusy || !normalizedTemplateInput}>
+                    Gerar
+                  </Button>
+                </div>
+              </FormField>
+              <p className="text-xs text-muted-foreground">{templateInput.helpText}</p>
+            </div>
+          ) : null}
+
+          {draftQuery.isLoading && canRenderDraft ? (
             <div className="flex items-center gap-2 rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Gerando prompt
@@ -197,7 +249,13 @@ export function GeneratePromptDrawer({
             </div>
           ) : null}
 
-          {draftQuery.data ? (
+          {templateInput && !activeDraft && !draftQuery.isLoading && !draftQuery.error ? (
+            <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
+              Informe {templateInput.label} para gerar a previa do prompt filho.
+            </div>
+          ) : null}
+
+          {activeDraft ? (
             <form className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4">
               <input type="hidden" {...form.register('content')} value={editorContent} />
 
@@ -236,7 +294,7 @@ export function GeneratePromptDrawer({
 
               <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-1.5">
                 <PromptEditor
-                  workingDirectoryId={draftQuery.data.workingDirectoryId}
+                  workingDirectoryId={activeDraft.workingDirectoryId}
                   value={editorContent}
                   onChange={(value, nextMentions) => {
                     setContentOverride(value)
@@ -261,11 +319,11 @@ export function GeneratePromptDrawer({
           <Button type="button" variant="ghost" onClick={requestClose} disabled={isBusy}>
             Cancelar
           </Button>
-          <Button type="button" variant="secondary" onClick={() => submit(true)} disabled={!draftQuery.data || isBusy}>
+          <Button type="button" variant="secondary" onClick={() => submit(true)} disabled={!activeDraft || isBusy}>
             {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
             Criar e copiar
           </Button>
-          <Button type="button" onClick={() => submit(false)} disabled={!draftQuery.data || isBusy}>
+          <Button type="button" onClick={() => submit(false)} disabled={!activeDraft || isBusy}>
             {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Criar filho
           </Button>

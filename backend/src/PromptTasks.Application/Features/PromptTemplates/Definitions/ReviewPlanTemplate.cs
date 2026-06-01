@@ -9,6 +9,7 @@ public sealed class ReviewPlanTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para validar, aprovar ou apontar melhorias em um plano.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.Planning;
+    public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,

@@ -34,6 +34,7 @@ describe('prompt template api', () => {
           description: 'Valida o plano',
           defaultTargetAgent: 'Codex',
           defaultKind: 'Planning',
+          input: null,
         },
       ]),
     )
@@ -45,6 +46,7 @@ describe('prompt template api', () => {
         description: 'Valida o plano',
         defaultTargetAgent: 'Codex',
         defaultKind: 'Planning',
+        input: null,
       },
     ])
     expect(apiMock.get).toHaveBeenCalledWith('prompt-templates')
@@ -73,7 +75,31 @@ describe('prompt template api', () => {
     })
     expect(apiMock.post).toHaveBeenCalledWith(
       'linked-documents/019e9f6a-94e7-7a23-965d-c8b05c63ee59/prompt-drafts',
-      { json: { templateKey: 'ReviewPlan' } },
+      { json: { templateKey: 'ReviewPlan', pullRequest: undefined } },
+    )
+  })
+
+  it('sends the pull request when rendering PR review drafts', async () => {
+    apiMock.post.mockReturnValue(
+      jsonResponse({
+        templateKey: 'ReviewPullRequest',
+        linkedDocumentId: '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+        workingDirectoryId: '019e9f6a-9fb2-7f24-ac3a-bf099d2c93c0',
+        parentPromptId: '019e9f6a-a269-7991-95d5-4e602dcf773d',
+        title: 'Revisar PR #42',
+        content: 'Revise a PR #42.',
+        targetAgent: 'Codex',
+        kind: 'General',
+      }),
+    )
+
+    await renderPromptDraft('019e9f6a-94e7-7a23-965d-c8b05c63ee59', 'ReviewPullRequest', {
+      pullRequest: '42',
+    })
+
+    expect(apiMock.post).toHaveBeenCalledWith(
+      'linked-documents/019e9f6a-94e7-7a23-965d-c8b05c63ee59/prompt-drafts',
+      { json: { templateKey: 'ReviewPullRequest', pullRequest: '42' } },
     )
   })
 

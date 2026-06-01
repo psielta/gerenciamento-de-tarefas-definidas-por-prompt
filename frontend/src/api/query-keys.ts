@@ -34,8 +34,8 @@ export const queryKeys = {
   },
   promptTemplates: {
     all: ['prompt-templates'] as const,
-    draft: (linkedDocumentId: string, templateKey: string) =>
-      ['prompt-templates', 'draft', linkedDocumentId, templateKey] as const,
+    draft: (linkedDocumentId: string, templateKey: string, inputValue?: string) =>
+      ['prompt-templates', 'draft', linkedDocumentId, templateKey, inputValue ?? ''] as const,
   },
   linkedDocuments: {
     all: ['linked-documents'] as const,

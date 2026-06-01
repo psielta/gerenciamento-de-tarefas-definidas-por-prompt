@@ -32,11 +32,26 @@ const template: PromptTemplate = {
   description: 'Valida o plano',
   defaultTargetAgent: 'Codex',
   defaultKind: 'Planning',
+  input: null,
+}
+const prTemplate: PromptTemplate = {
+  key: 'ReviewPullRequest',
+  displayName: 'Revisar PR',
+  description: 'Valida a PR',
+  defaultTargetAgent: 'Codex',
+  defaultKind: 'General',
+  input: {
+    key: 'pullRequest',
+    label: 'PR',
+    placeholder: '#123 ou URL da PR',
+    helpText: 'Informe o numero ou link da PR.',
+    required: true,
+  },
 }
 const draftContent =
   'Dado o plano "C:\\Users\\psiel\\.claude\\plans\\plan.md", valide o plano, aprove-o ou aponte melhorias.'
 
-function renderDrawer() {
+function renderDrawer(templateOverride = template) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -48,7 +63,7 @@ function renderDrawer() {
     <QueryClientProvider client={queryClient}>
       <GeneratePromptDrawer
         linkedDocumentId="019e9f6a-94e7-7a23-965d-c8b05c63ee59"
-        template={template}
+        template={templateOverride}
         onClose={vi.fn()}
       />
     </QueryClientProvider>,
@@ -121,5 +136,22 @@ describe('GeneratePromptDrawer', () => {
 
     await screen.findByDisplayValue('Revisar plano: plan.md')
     expect(screen.getByRole('button', { name: /^Criar e copiar$/ })).toBeInTheDocument()
+  })
+
+  it('asks for the PR before rendering a pull request review draft', async () => {
+    const user = userEvent.setup()
+    renderDrawer(prTemplate)
+
+    expect(renderPromptDraft).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('PR'), '42')
+    await user.click(screen.getByRole('button', { name: /^Gerar$/ }))
+
+    await waitFor(() => {
+      expect(renderPromptDraft).toHaveBeenCalledWith(
+        '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+        'ReviewPullRequest',
+        { pullRequest: '42' },
+      )
+    })
   })
 })
