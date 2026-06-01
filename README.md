@@ -1,4 +1,9 @@
-# Prompt Tasks
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg" />
+    <img src="docs/logo-light.svg" alt="Prompt Tasks" width="320" />
+  </picture>
+</p>
 
 Prompt Tasks e uma aplicacao full-stack para organizar, versionar e acompanhar prompts em Markdown usados com agentes de desenvolvimento como Claude Code e Codex. O projeto foi construido como uma demonstracao de portfolio com foco em arquitetura limpa, experiencia de edicao produtiva, persistencia auditavel, workflow operacional e atualizacoes em tempo real.
 
