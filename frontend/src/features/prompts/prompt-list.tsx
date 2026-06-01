@@ -71,7 +71,7 @@ export function PromptList({ workingDirectoryId }: PromptListProps) {
           Buscar
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} />
+            <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Titulo, conteudo ou numero" />
           </div>
         </label>
 
@@ -135,6 +135,49 @@ export function PromptList({ workingDirectoryId }: PromptListProps) {
       <div className="grid gap-2">
         {promptsQuery.data?.map((prompt) => {
           const taskSummary = taskSummaryByPromptId.get(prompt.id)
+          const linkContent = (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <FileText className="h-4 w-4 shrink-0 text-ring" />
+                  {prompt.taskNumber ? <Badge variant="blue">{prompt.taskNumber}</Badge> : null}
+                  <span className="truncate">{prompt.title}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{prompt.content}</p>
+                {taskSummary ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    {taskSummary.currentPhaseName ? (
+                      <PhaseBadge name={taskSummary.currentPhaseName} color={taskSummary.currentPhaseColor} />
+                    ) : (
+                      <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                        Fluxo não iniciado
+                      </span>
+                    )}
+                    {taskSummary.currentActor ? <ActorBadge actor={taskSummary.currentActor} /> : null}
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <StatusBadge status={prompt.status} />
+                <Badge variant="blue">{AGENT_LABELS[prompt.targetAgent]}</Badge>
+                <Badge>{KIND_LABELS[prompt.kind]}</Badge>
+              </div>
+            </div>
+          )
+
+          if (prompt.taskNumber) {
+            return (
+              <Link
+                key={prompt.id}
+                to="/workspaces/$workspaceId/tasks/$taskNumber"
+                params={{ workspaceId: workingDirectoryId, taskNumber: prompt.taskNumber }}
+                className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring hover:bg-card"
+              >
+                {linkContent}
+              </Link>
+            )
+          }
+
           return (
             <Link
               key={prompt.id}
@@ -142,32 +185,7 @@ export function PromptList({ workingDirectoryId }: PromptListProps) {
               params={{ workspaceId: workingDirectoryId, promptId: prompt.id }}
               className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring hover:bg-card"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <FileText className="h-4 w-4 shrink-0 text-ring" />
-                    <span className="truncate">{prompt.title}</span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{prompt.content}</p>
-                  {taskSummary ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      {taskSummary.currentPhaseName ? (
-                        <PhaseBadge name={taskSummary.currentPhaseName} color={taskSummary.currentPhaseColor} />
-                      ) : (
-                        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                          Fluxo não iniciado
-                        </span>
-                      )}
-                      {taskSummary.currentActor ? <ActorBadge actor={taskSummary.currentActor} /> : null}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <StatusBadge status={prompt.status} />
-                  <Badge variant="blue">{AGENT_LABELS[prompt.targetAgent]}</Badge>
-                  <Badge>{KIND_LABELS[prompt.kind]}</Badge>
-                </div>
-              </div>
+              {linkContent}
             </Link>
           )
         })}

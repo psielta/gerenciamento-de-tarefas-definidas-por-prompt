@@ -14,6 +14,7 @@ public static class DtoMapper
             workingDirectory.AbsolutePath,
             workingDirectory.RespectGitignore,
             workingDirectory.EnableAiContext,
+            workingDirectory.TaskNumberPattern,
             workingDirectory.CreatedAtUtc,
             workingDirectory.UpdatedAtUtc);
 
@@ -22,6 +23,7 @@ public static class DtoMapper
             prompt.Id,
             prompt.WorkingDirectoryId,
             prompt.ParentPromptId,
+            prompt.TaskNumber,
             prompt.Title,
             prompt.Content,
             prompt.TargetAgent,

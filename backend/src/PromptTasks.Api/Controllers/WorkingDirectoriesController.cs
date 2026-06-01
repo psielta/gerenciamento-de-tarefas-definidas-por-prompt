@@ -32,7 +32,8 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
                 request.Name,
                 request.AbsolutePath,
                 request.RespectGitignore,
-                request.EnableAiContext),
+                request.EnableAiContext,
+                request.TaskNumberPattern),
             cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
@@ -50,7 +51,8 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
                 request.Name,
                 request.AbsolutePath,
                 request.RespectGitignore,
-                request.EnableAiContext),
+                request.EnableAiContext,
+                request.TaskNumberPattern),
             cancellationToken);
 
         return Ok(result);
@@ -73,11 +75,13 @@ public sealed class WorkingDirectoriesController(ISender sender) : ControllerBas
         string Name,
         string AbsolutePath,
         bool RespectGitignore = true,
-        bool EnableAiContext = false);
+        bool EnableAiContext = false,
+        string? TaskNumberPattern = null);
     public sealed record UpdateWorkingDirectoryRequest(
         string Name,
         string AbsolutePath,
         bool RespectGitignore,
-        bool EnableAiContext);
+        bool EnableAiContext,
+        string? TaskNumberPattern = null);
     public sealed record ValidatePathRequest(string AbsolutePath);
 }

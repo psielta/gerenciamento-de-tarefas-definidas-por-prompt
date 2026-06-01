@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -16,6 +17,8 @@ public sealed class PromptTasksApiFactory : WebApplicationFactory<Program>, IAsy
         .WithUsername("prompttasks")
         .WithPassword("prompttasks")
         .Build();
+
+    public MutableDateTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero));
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -32,7 +35,9 @@ public sealed class PromptTasksApiFactory : WebApplicationFactory<Program>, IAsy
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+            services.RemoveAll<IDateTimeProvider>();
             services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
+            services.AddSingleton<IDateTimeProvider>(Clock);
         });
     }
 
@@ -49,5 +54,15 @@ public sealed class PromptTasksApiFactory : WebApplicationFactory<Program>, IAsy
     async Task IAsyncLifetime.DisposeAsync()
     {
         await _postgres.DisposeAsync();
+    }
+
+    public sealed class MutableDateTimeProvider(DateTimeOffset utcNow) : IDateTimeProvider
+    {
+        public DateTimeOffset UtcNow { get; private set; } = utcNow;
+
+        public void Set(DateTimeOffset utcNow)
+        {
+            UtcNow = utcNow;
+        }
     }
 }

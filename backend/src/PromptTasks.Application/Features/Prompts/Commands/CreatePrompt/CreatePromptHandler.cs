@@ -15,6 +15,7 @@ public sealed class CreatePromptHandler(
     IWorkspaceFileService workspaceFileService,
     IPromptNotifier promptNotifier,
     IWorkflowNotifier workflowNotifier,
+    IDailyTaskSequenceProvider dailyTaskSequenceProvider,
     ICurrentUser currentUser,
     IDateTimeProvider dateTimeProvider)
     : IRequestHandler<CreatePromptCommand, PromptDto>
@@ -42,6 +43,13 @@ public sealed class CreatePromptHandler(
             CurrentVersion = 1,
             OwnerId = currentUser.UserId
         };
+
+        if (prompt.ParentPromptId is null && !string.IsNullOrWhiteSpace(directory.TaskNumberPattern))
+        {
+            var sequenceDate = DateOnly.FromDateTime(dateTimeProvider.UtcNow.UtcDateTime);
+            var sequence = await dailyTaskSequenceProvider.NextAsync(directory.Id, sequenceDate, cancellationToken);
+            prompt.TaskNumber = TaskNumberFormatter.Format(directory.TaskNumberPattern, sequence, sequenceDate);
+        }
 
         var references = await PromptMutationHelpers.BuildReferencesAsync(
             workspaceFileService,

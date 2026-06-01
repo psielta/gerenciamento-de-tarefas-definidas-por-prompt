@@ -8,6 +8,7 @@ import { getPrompt, updatePromptStatus } from '@/api/prompts'
 import { queryKeys } from '@/api/query-keys'
 import type { TaskSummary } from '@/api/schemas'
 import { advancePhase, completeWorkflow, getWorkflow, startWorkflow } from '@/api/workflow'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ActorBadge, PhaseBadge } from './badges'
 import { formatRelativeTime } from './constants'
@@ -96,6 +97,25 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
     : false
   const isBusy = start.isPending || advanceOrComplete.isPending || archive.isPending
   const workspaceName = formatWorkspaceName(task.workingDirectoryName)
+  const linkContent = (
+    <>
+      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {task.taskNumber ? <Badge variant="blue">{task.taskNumber}</Badge> : null}
+        <span
+          className="line-clamp-2 min-w-0 max-w-full break-words text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]"
+          title={task.title}
+        >
+          {task.title}
+        </span>
+      </span>
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <FolderGit2 className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate" title={task.workingDirectoryName}>
+          {workspaceName}
+        </span>
+      </span>
+    </>
+  )
 
   return (
     <div
@@ -106,25 +126,25 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
         isHumanTurn ? 'border-warning-solid' : 'border-border'
       } ${moveDisabled || isBusy ? '' : 'cursor-grab active:cursor-grabbing'} ${dragging || archive.isPending ? 'opacity-45' : ''}`}
     >
-      <Link
-        to="/workspaces/$workspaceId/prompts/$promptId"
-        params={{ workspaceId: task.workingDirectoryId, promptId: task.promptId }}
-        search={{}}
-        className="grid min-w-0 gap-2"
-      >
-        <span
-          className="line-clamp-2 min-w-0 max-w-full break-words text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]"
-          title={task.title}
+      {task.taskNumber ? (
+        <Link
+          to="/workspaces/$workspaceId/tasks/$taskNumber"
+          params={{ workspaceId: task.workingDirectoryId, taskNumber: task.taskNumber }}
+          search={{}}
+          className="grid min-w-0 gap-2"
         >
-          {task.title}
-        </span>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <FolderGit2 className="h-3.5 w-3.5 shrink-0" />
-          <span className="min-w-0 truncate" title={task.workingDirectoryName}>
-            {workspaceName}
-          </span>
-        </span>
-      </Link>
+          {linkContent}
+        </Link>
+      ) : (
+        <Link
+          to="/workspaces/$workspaceId/prompts/$promptId"
+          params={{ workspaceId: task.workingDirectoryId, promptId: task.promptId }}
+          search={{}}
+          className="grid min-w-0 gap-2"
+        >
+          {linkContent}
+        </Link>
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5">
         {task.currentPhaseName ? (

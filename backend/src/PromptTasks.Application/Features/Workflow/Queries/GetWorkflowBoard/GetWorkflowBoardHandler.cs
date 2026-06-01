@@ -32,7 +32,10 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
         if (!string.IsNullOrWhiteSpace(request.Q))
         {
             var term = request.Q.Trim();
-            promptsQuery = promptsQuery.Where(prompt => prompt.Title.Contains(term) || prompt.Content.Contains(term));
+            promptsQuery = promptsQuery.Where(prompt =>
+                prompt.Title.Contains(term) ||
+                prompt.Content.Contains(term) ||
+                (prompt.TaskNumber != null && prompt.TaskNumber.Contains(term)));
         }
 
         var prompts = promptsQuery.ToList();
@@ -92,6 +95,7 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
                 prompt.Id,
                 prompt.WorkingDirectoryId,
                 workingDirectoryNames.GetValueOrDefault(prompt.WorkingDirectoryId, string.Empty),
+                prompt.TaskNumber,
                 prompt.Title,
                 prompt.Status,
                 workflow?.Status,

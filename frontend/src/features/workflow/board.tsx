@@ -338,7 +338,7 @@ export function Board() {
             Buscar
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Título ou conteúdo" />
+              <Input className="pl-9" value={q} onChange={(event) => setQ(event.target.value)} placeholder="Titulo, conteudo ou numero" />
             </div>
           </label>
           <label className="grid gap-1 text-xs font-medium text-foreground lg:w-48">

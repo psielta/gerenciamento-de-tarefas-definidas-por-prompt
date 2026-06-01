@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext(
     public DbSet<User> Users => Set<User>();
     public DbSet<WorkingDirectory> WorkingDirectories => Set<WorkingDirectory>();
     public DbSet<Prompt> Prompts => Set<Prompt>();
+    public DbSet<DailyTaskSequence> DailyTaskSequences => Set<DailyTaskSequence>();
     public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
     public DbSet<PromptFileReference> PromptFileReferences => Set<PromptFileReference>();
     public DbSet<LinkedDocument> LinkedDocuments => Set<LinkedDocument>();

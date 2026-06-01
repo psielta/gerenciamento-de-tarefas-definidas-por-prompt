@@ -11,6 +11,7 @@ public sealed class PromptConfiguration : IEntityTypeConfiguration<Prompt>
         builder.ToTable("prompts");
         builder.HasKey(prompt => prompt.Id);
         builder.Property(prompt => prompt.Id).ValueGeneratedNever();
+        builder.Property(prompt => prompt.TaskNumber).HasMaxLength(64);
         builder.Property(prompt => prompt.Title).HasMaxLength(220).IsRequired();
         builder.Property(prompt => prompt.Content).HasColumnType("text").IsRequired();
         builder.Property(prompt => prompt.TargetAgent).HasConversion<int>().IsRequired();
@@ -26,6 +27,9 @@ public sealed class PromptConfiguration : IEntityTypeConfiguration<Prompt>
 
         builder.HasIndex(prompt => new { prompt.WorkingDirectoryId, prompt.Status });
         builder.HasIndex(prompt => new { prompt.WorkingDirectoryId, prompt.UpdatedAtUtc });
+        builder.HasIndex(prompt => new { prompt.WorkingDirectoryId, prompt.TaskNumber })
+            .IsUnique()
+            .HasFilter("\"TaskNumber\" IS NOT NULL");
         builder.HasIndex(prompt => new { prompt.ParentPromptId, prompt.UpdatedAtUtc });
 
         builder.HasOne(prompt => prompt.Owner)

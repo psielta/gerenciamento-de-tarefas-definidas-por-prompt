@@ -7,4 +7,5 @@ public sealed record CreateWorkingDirectoryCommand(
     string Name,
     string AbsolutePath,
     bool RespectGitignore = true,
-    bool EnableAiContext = false) : IRequest<WorkingDirectoryDto>;
+    bool EnableAiContext = false,
+    string? TaskNumberPattern = null) : IRequest<WorkingDirectoryDto>;

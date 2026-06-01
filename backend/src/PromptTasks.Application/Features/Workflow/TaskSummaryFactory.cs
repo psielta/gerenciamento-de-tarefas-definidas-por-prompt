@@ -33,6 +33,7 @@ internal static class TaskSummaryFactory
             prompt.Id,
             prompt.WorkingDirectoryId,
             workingDirectoryName,
+            prompt.TaskNumber,
             prompt.Title,
             prompt.Status,
             workflow?.Status,

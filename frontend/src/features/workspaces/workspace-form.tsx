@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderCheck, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -11,13 +12,21 @@ import { FormField } from '@/components/form-field'
 import { createWorkingDirectory, validateWorkingDirectoryPath } from '@/api/working-directories'
 import { queryKeys } from '@/api/query-keys'
 import { getErrorMessage } from '@/api/client'
+import { formatTaskNumberPreview, validateTaskNumberPattern } from './task-number-format'
 
-const workspaceFormSchema = z.object({
-  name: z.string().trim().min(2, 'Informe um nome com pelo menos 2 caracteres.'),
-  absolutePath: z.string().trim().min(3, 'Informe o caminho absoluto do diretorio.'),
-  respectGitignore: z.boolean(),
-  enableAiContext: z.boolean(),
-})
+const workspaceFormSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Informe um nome com pelo menos 2 caracteres.'),
+    absolutePath: z.string().trim().min(3, 'Informe o caminho absoluto do diretorio.'),
+    respectGitignore: z.boolean(),
+    enableAiContext: z.boolean(),
+    taskNumberPattern: z.string(),
+  })
+  .superRefine((values, context) => {
+    for (const error of validateTaskNumberPattern(values.taskNumberPattern)) {
+      context.addIssue({ code: 'custom', path: ['taskNumberPattern'], message: error })
+    }
+  })
 
 type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>
 
@@ -32,13 +41,19 @@ export function WorkspaceForm() {
       absolutePath: '',
       respectGitignore: true,
       enableAiContext: false,
+      taskNumberPattern: '',
     },
   })
+  const taskNumberPattern = useWatch({ control: form.control, name: 'taskNumberPattern' })
+  const patternErrors = validateTaskNumberPattern(taskNumberPattern)
+  const preview = taskNumberPattern.trim() && patternErrors.length === 0
+    ? formatTaskNumberPreview(taskNumberPattern.trim(), 1, new Date())
+    : null
 
   const createMutation = useMutation({
     mutationFn: createWorkingDirectory,
     onSuccess: async () => {
-      form.reset({ name: '', absolutePath: '', respectGitignore: true, enableAiContext: false })
+      form.reset({ name: '', absolutePath: '', respectGitignore: true, enableAiContext: false, taskNumberPattern: '' })
       setPathFeedback(null)
       await queryClient.invalidateQueries({ queryKey: queryKeys.workingDirectories.all })
       toast.success('Diretorio de trabalho criado.')
@@ -54,7 +69,12 @@ export function WorkspaceForm() {
     onError: (error) => toast.error(getErrorMessage(error)),
   })
 
-  const onSubmit = form.handleSubmit((values) => createMutation.mutate(values))
+  const onSubmit = form.handleSubmit((values) =>
+    createMutation.mutate({
+      ...values,
+      taskNumberPattern: values.taskNumberPattern.trim() || null,
+    }),
+  )
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4 rounded-lg border border-border bg-card p-4">
@@ -97,6 +117,12 @@ export function WorkspaceForm() {
         <input type="checkbox" className="h-4 w-4 accent-primary" {...form.register('enableAiContext')} />
         Injetar README.md, CLAUDE.md e AGENT.md no contexto da IA
       </label>
+
+      <FormField label="Padrao de numeracao" htmlFor="workspace-task-number-pattern" error={form.formState.errors.taskNumberPattern?.message}>
+        <Input id="workspace-task-number-pattern" placeholder="BP{N}{Date}" {...form.register('taskNumberPattern')} />
+      </FormField>
+
+      {preview ? <p className="text-sm text-muted-foreground">Preview: {preview}</p> : null}
 
       <Button type="submit" disabled={createMutation.isPending}>
         {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

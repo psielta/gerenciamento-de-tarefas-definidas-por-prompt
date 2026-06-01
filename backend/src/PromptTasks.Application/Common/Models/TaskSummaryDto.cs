@@ -7,6 +7,7 @@ public sealed record TaskSummaryDto(
     Guid PromptId,
     Guid WorkingDirectoryId,
     string WorkingDirectoryName,
+    string? TaskNumber,
     string Title,
     PromptStatus PromptStatus,
     PromptWorkflowStatus? WorkflowStatus,
