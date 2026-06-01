@@ -20,6 +20,17 @@ type TaskCardProps = {
   onDragEnd?: () => void
 }
 
+const WORKSPACE_NAME_MAX_LENGTH = 36
+
+function formatWorkspaceName(name: string) {
+  const normalizedName = name.trim()
+  if (normalizedName.length <= WORKSPACE_NAME_MAX_LENGTH) {
+    return normalizedName
+  }
+
+  return `${normalizedName.slice(0, WORKSPACE_NAME_MAX_LENGTH - 3).trimEnd()}...`
+}
+
 export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd }: TaskCardProps) {
   const queryClient = useQueryClient()
 
@@ -84,13 +95,14 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
     ? currentPhase.orderIndex === Math.max(...task.phases.map((phase) => phase.orderIndex))
     : false
   const isBusy = start.isPending || advanceOrComplete.isPending || archive.isPending
+  const workspaceName = formatWorkspaceName(task.workingDirectoryName)
 
   return (
     <div
       draggable={!moveDisabled && !isBusy}
       onDragStart={(event) => onDragStart?.(task, event)}
       onDragEnd={onDragEnd}
-      className={`grid gap-3 rounded-lg border bg-card p-3 transition-colors ${
+      className={`grid min-w-0 gap-3 rounded-lg border bg-card p-3 transition-colors ${
         isHumanTurn ? 'border-warning-solid' : 'border-border'
       } ${moveDisabled || isBusy ? '' : 'cursor-grab active:cursor-grabbing'} ${dragging || archive.isPending ? 'opacity-45' : ''}`}
     >
@@ -98,12 +110,19 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
         to="/workspaces/$workspaceId/prompts/$promptId"
         params={{ workspaceId: task.workingDirectoryId, promptId: task.promptId }}
         search={{}}
-        className="grid gap-2"
+        className="grid min-w-0 gap-2"
       >
-        <span className="line-clamp-2 text-sm font-semibold text-foreground">{task.title}</span>
+        <span
+          className="line-clamp-2 min-w-0 max-w-full break-words text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]"
+          title={task.title}
+        >
+          {task.title}
+        </span>
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <FolderGit2 className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{task.workingDirectoryName}</span>
+          <span className="min-w-0 truncate" title={task.workingDirectoryName}>
+            {workspaceName}
+          </span>
         </span>
       </Link>
 
