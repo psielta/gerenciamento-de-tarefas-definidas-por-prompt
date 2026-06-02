@@ -15,13 +15,14 @@ public sealed class TranslatePromptHandlerTests
         var gemini = new FakeGeminiClient();
         var handler = new TranslatePromptHandler(gemini, new FakeModelCatalog());
         var content = "Traduza este prompt preservando @src/main.cs";
+        var thinking = new GeminiThinking("level", null, "high");
 
         var result = await handler.Handle(
             new TranslatePromptCommand(
                 content,
                 FakeModelCatalog.ModelId,
-                0.4,
-                new GeminiThinking("none", 0, null)),
+                0.7,
+                thinking),
             CancellationToken.None);
 
         result.Content.Should().Be("translated");
@@ -29,6 +30,9 @@ public sealed class TranslatePromptHandlerTests
         result.CandidateTokens.Should().Be(5);
 
         gemini.LastRefineRequest.Should().NotBeNull();
+        gemini.LastRefineRequest!.Temperature.Should().Be(0.7);
+        gemini.LastRefineRequest.Thinking.Should().Be(thinking);
+        gemini.LastRefineRequest.IncludeThoughts.Should().BeFalse();
         gemini.LastRefineRequest!.UseSystemCache.Should().BeFalse();
         gemini.LastRefineRequest.CachedContentName.Should().BeNull();
         gemini.LastRefineRequest.Contents.Should()
