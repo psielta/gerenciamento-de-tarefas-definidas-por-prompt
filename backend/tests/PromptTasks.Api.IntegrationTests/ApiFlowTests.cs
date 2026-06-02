@@ -246,6 +246,11 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             template.DefaultKind == PromptKind.General &&
             template.Input != null &&
             template.Input.Key == "pullRequest");
+        templates.Should().Contain(template =>
+            template.Key == PromptTemplateKey.RebaseCurrentBranch &&
+            template.DefaultTargetAgent == TargetAgent.Codex &&
+            template.DefaultKind == PromptKind.General &&
+            template.Input == null);
 
         var wdResponse = await client.PostAsJsonAsync(
             "/api/working-directories",
@@ -308,6 +313,16 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
         var mergeDraft = await mergeDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
         mergeDraft!.Title.Should().Be("Merge PR #42: review-plan.md");
         mergeDraft.Content.Should().Contain($"Merge the PR #42 that implements the plan `{planPath}`.");
+
+        var rebaseDraftResponse = await client.PostAsJsonAsync(
+            $"/api/linked-documents/{linked.Id}/prompt-drafts",
+            new { templateKey = PromptTemplateKey.RebaseCurrentBranch },
+            JsonOptions);
+        rebaseDraftResponse.EnsureSuccessStatusCode();
+        var rebaseDraft = await rebaseDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
+        rebaseDraft!.Title.Should().Be("Update branch from main: review-plan.md");
+        rebaseDraft.Content.Should().Contain("Update my current branch/worktree with the latest changes from the remote main branch using rebase.");
+        rebaseDraft.Content.Should().Contain("If there are conflicts, stop and tell me so we can resolve them together.");
 
         var generatedPromptResponse = await client.PostAsJsonAsync(
             "/api/prompts",

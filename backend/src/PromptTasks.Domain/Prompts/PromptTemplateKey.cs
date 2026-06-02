@@ -8,5 +8,6 @@ public enum PromptTemplateKey
     ReReviewPlan = 4,
     ImplementPlanInWorktree = 5,
     ReviewPullRequest = 6,
-    MergePullRequest = 7
+    MergePullRequest = 7,
+    RebaseCurrentBranch = 8
 }
