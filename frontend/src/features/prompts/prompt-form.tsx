@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Bot, Loader2, Save, Sparkles, Trash2 } from 'lucide-react'
+import { Bot, Languages, Loader2, Save, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ import {
 import { PromptEditor } from './prompt-editor'
 import { RefineDialog } from './ai/refine-dialog'
 import { AiAssistantPanel } from './ai/ai-assistant-panel'
+import { TranslateDialog } from './ai/translate-dialog'
 
 type PromptFormProps = {
   workingDirectoryId: string
@@ -37,6 +38,7 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
     mentions: FileMention[]
   } | null>(null)
   const [showRefineDialog, setShowRefineDialog] = useState(false)
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false)
   const [showAiPanel, setShowAiPanel] = useState(false)
 
   const promptQuery = useQuery({
@@ -193,6 +195,16 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
           onClose={() => setShowAiPanel(false)}
         />
       ) : null}
+      {showTranslateDialog ? (
+        <TranslateDialog
+          content={content}
+          onApply={(translated) => {
+            form.setValue('content', translated, { shouldDirty: true, shouldValidate: true })
+            setEditorMentions({ promptId, mentions: [] })
+          }}
+          onClose={() => setShowTranslateDialog(false)}
+        />
+      ) : null}
     <form onSubmit={onSubmit} className="grid gap-5">
       <div className="grid gap-4 rounded-lg border border-border bg-card p-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_10rem_10rem]">
@@ -258,6 +270,16 @@ export function PromptForm({ workingDirectoryId, promptId }: PromptFormProps) {
             >
               <Sparkles className="h-4 w-4" />
               Refinar
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowTranslateDialog(true)}
+              disabled={isBusy || !content.trim()}
+              title="Tradução para inglês"
+            >
+              <Languages className="h-4 w-4" />
+              Tradução para inglês
             </Button>
             <Button
               type="button"

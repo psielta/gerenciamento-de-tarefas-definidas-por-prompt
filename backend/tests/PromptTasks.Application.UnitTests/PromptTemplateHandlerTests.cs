@@ -74,9 +74,9 @@ public sealed class PromptTemplateHandlerTests
         result.LinkedDocumentId.Should().Be(document.Id);
         result.WorkingDirectoryId.Should().Be(prompt.WorkingDirectoryId);
         result.ParentPromptId.Should().Be(prompt.Id);
-        result.Title.Should().Be("Revisar plano: plan.md");
+        result.Title.Should().Be("Review plan: plan.md");
         result.Content.Should().Be(
-            "Dado o plano \"C:/Users/psiel/.claude/plans/plan.md\", valide o plano, aprove-o ou aponte melhorias.");
+            "Given the plan \"C:/Users/psiel/.claude/plans/plan.md\", validate the plan, approve it, or point out improvements.");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.Planning);
         context.SaveChangesCount.Should().Be(0);
@@ -94,8 +94,8 @@ public sealed class PromptTemplateHandlerTests
             new GeneratePromptDraftCommand(document.Id, PromptTemplateKey.ImplementPlan),
             CancellationToken.None);
 
-        result.Title.Should().Be("Implementar plano: implementation.md");
-        result.Content.Should().Be("Implemente o plano \"C:/plans/implementation.md\".");
+        result.Title.Should().Be("Implement plan: implementation.md");
+        result.Content.Should().Be("Implement the plan \"C:/plans/implementation.md\".");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.General);
     }
@@ -113,18 +113,18 @@ public sealed class PromptTemplateHandlerTests
             CancellationToken.None);
 
         result.TemplateKey.Should().Be(PromptTemplateKey.ReviewPlanWithParentPrompt);
-        result.Title.Should().Be("Revisar plano com prompt pai: plan.md");
+        result.Title.Should().Be("Review plan with parent prompt: plan.md");
         result.Content.Should().Be(
             """
-            Eu pedi para Claude fazer um plan-mode usando o prompt abaixo:
+            I asked Claude to run plan-mode using the prompt below:
 
             ```md
             Faca um plano para @src/main.go
             ```
 
-            Ele gerou o plano "C:/plans/plan.md".
+            It generated the plan "C:/plans/plan.md".
 
-            Dado o plano "C:/plans/plan.md", valide o plano, aprove-o ou aponte melhorias.
+            Given the plan "C:/plans/plan.md", validate the plan, approve it, or point out improvements.
             """);
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.Planning);
@@ -143,9 +143,9 @@ public sealed class PromptTemplateHandlerTests
             CancellationToken.None);
 
         result.TemplateKey.Should().Be(PromptTemplateKey.ReReviewPlan);
-        result.Title.Should().Be("Re-review do plano: reviewed-plan.md");
+        result.Title.Should().Be("Re-review plan: reviewed-plan.md");
         result.Content.Should().Be(
-            "Eu passei os pontos anteriores para o Claude corrigir no plano \"C:/plans/reviewed-plan.md\". Valide novamente o plano atualizado, aprove-o se estiver correto ou aponte as melhorias que ainda faltam.");
+            "I passed the previous points to Claude to fix in the plan \"C:/plans/reviewed-plan.md\". Validate the updated plan again, approve it if correct, or point out the improvements that are still missing.");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.Planning);
     }
@@ -163,9 +163,9 @@ public sealed class PromptTemplateHandlerTests
             CancellationToken.None);
 
         result.TemplateKey.Should().Be(PromptTemplateKey.ImplementPlanInWorktree);
-        result.Title.Should().Be("Implementar em worktree: worktree-plan.md");
-        result.Content.Should().Contain("Implemente o plano `C:/plans/worktree-plan.md` por completo em uma worktree separada.");
-        result.Content.Should().Contain("crie uma PR");
+        result.Title.Should().Be("Implement in worktree: worktree-plan.md");
+        result.Content.Should().Contain("Implement the plan `C:/plans/worktree-plan.md` completely in a separate worktree.");
+        result.Content.Should().Contain("open a PR");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.General);
     }
@@ -183,9 +183,9 @@ public sealed class PromptTemplateHandlerTests
             CancellationToken.None);
 
         result.TemplateKey.Should().Be(PromptTemplateKey.ReviewPullRequest);
-        result.Title.Should().Be("Revisar PR #123: pr-plan.md");
-        result.Content.Should().Contain("Revise a PR #123 que implementa o plano `C:/plans/pr-plan.md`.");
-        result.Content.Should().Contain("Priorize bugs, riscos comportamentais e testes faltantes.");
+        result.Title.Should().Be("Review PR #123: pr-plan.md");
+        result.Content.Should().Contain("Review the PR #123 that implements the plan `C:/plans/pr-plan.md`.");
+        result.Content.Should().Contain("Prioritize bugs, behavioral risks, and missing tests.");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.General);
     }
@@ -203,11 +203,11 @@ public sealed class PromptTemplateHandlerTests
             CancellationToken.None);
 
         result.TemplateKey.Should().Be(PromptTemplateKey.MergePullRequest);
-        result.Title.Should().Be("Fazer merge da PR #123: merge-plan.md");
-        result.Content.Should().Contain("Faca o merge da PR #123 que implementa o plano `C:/plans/merge-plan.md`.");
-        result.Content.Should().Contain("sincronize a branch principal local com o remoto");
-        result.Content.Should().Contain("remova a worktree se ela existir");
-        result.Content.Should().Contain("exclua a branch local/remota se ainda existirem e for seguro");
+        result.Title.Should().Be("Merge PR #123: merge-plan.md");
+        result.Content.Should().Contain("Merge the PR #123 that implements the plan `C:/plans/merge-plan.md`.");
+        result.Content.Should().Contain("sync the local main branch with the remote");
+        result.Content.Should().Contain("remove the worktree if it exists");
+        result.Content.Should().Contain("delete the local/remote branch if they still exist and it is safe");
         result.TargetAgent.Should().Be(TargetAgent.Codex);
         result.Kind.Should().Be(PromptKind.General);
     }

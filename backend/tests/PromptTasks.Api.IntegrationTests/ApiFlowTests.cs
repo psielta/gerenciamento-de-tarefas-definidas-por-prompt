@@ -289,7 +289,7 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
         draft.ParentPromptId.Should().Be(prompt.Id);
         draft.TargetAgent.Should().Be(TargetAgent.Codex);
         draft.Kind.Should().Be(PromptKind.Planning);
-        draft.Content.Should().Be($"Dado o plano \"{planPath}\", valide o plano, aprove-o ou aponte melhorias.");
+        draft.Content.Should().Be($"Given the plan \"{planPath}\", validate the plan, approve it, or point out improvements.");
 
         var prDraftResponse = await client.PostAsJsonAsync(
             $"/api/linked-documents/{linked.Id}/prompt-drafts",
@@ -297,8 +297,8 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             JsonOptions);
         prDraftResponse.EnsureSuccessStatusCode();
         var prDraft = await prDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
-        prDraft!.Title.Should().Be("Revisar PR #42: review-plan.md");
-        prDraft.Content.Should().Contain($"Revise a PR #42 que implementa o plano `{planPath}`.");
+        prDraft!.Title.Should().Be("Review PR #42: review-plan.md");
+        prDraft.Content.Should().Contain($"Review the PR #42 that implements the plan `{planPath}`.");
 
         var mergeDraftResponse = await client.PostAsJsonAsync(
             $"/api/linked-documents/{linked.Id}/prompt-drafts",
@@ -306,8 +306,8 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             JsonOptions);
         mergeDraftResponse.EnsureSuccessStatusCode();
         var mergeDraft = await mergeDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
-        mergeDraft!.Title.Should().Be("Fazer merge da PR #42: review-plan.md");
-        mergeDraft.Content.Should().Contain($"Faca o merge da PR #42 que implementa o plano `{planPath}`.");
+        mergeDraft!.Title.Should().Be("Merge PR #42: review-plan.md");
+        mergeDraft.Content.Should().Contain($"Merge the PR #42 that implements the plan `{planPath}`.");
 
         var generatedPromptResponse = await client.PostAsJsonAsync(
             "/api/prompts",

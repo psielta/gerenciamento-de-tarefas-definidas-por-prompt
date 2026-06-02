@@ -15,6 +15,6 @@ public sealed class ReviewPlanTemplate : IPromptTemplateDefinition
         PromptTemplateContext context,
         CancellationToken cancellationToken) =>
         Task.FromResult(new RenderedPromptTemplate(
-            $"Revisar plano: {context.DisplayName}",
-            $"Dado o plano \"{context.AbsolutePath}\", valide o plano, aprove-o ou aponte melhorias."));
+            $"Review plan: {context.DisplayName}",
+            $"Given the plan \"{context.AbsolutePath}\", validate the plan, approve it, or point out improvements."));
 }
