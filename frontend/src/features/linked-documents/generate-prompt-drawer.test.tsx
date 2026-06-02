@@ -49,7 +49,7 @@ const prTemplate: PromptTemplate = {
   },
 }
 const draftContent =
-  'Dado o plano "C:\\Users\\psiel\\.claude\\plans\\plan.md", valide o plano, aprove-o ou aponte melhorias.'
+  'Given the plan "C:\\Users\\psiel\\.claude\\plans\\plan.md", validate the plan, approve it, or point out improvements.'
 
 function renderDrawer(templateOverride = template) {
   const queryClient = new QueryClient({
@@ -78,7 +78,7 @@ describe('GeneratePromptDrawer', () => {
       linkedDocumentId: '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
       workingDirectoryId: '019e9f6a-9fb2-7f24-ac3a-bf099d2c93c0',
       parentPromptId: '019e9f6a-a269-7991-95d5-4e602dcf773d',
-      title: 'Revisar plano: plan.md',
+      title: 'Review plan: plan.md',
       content: draftContent,
       targetAgent: 'Codex',
       kind: 'Planning',
@@ -108,7 +108,7 @@ describe('GeneratePromptDrawer', () => {
     const user = userEvent.setup()
     renderDrawer()
 
-    const titleInput = await screen.findByDisplayValue('Revisar plano: plan.md')
+    const titleInput = await screen.findByDisplayValue('Review plan: plan.md')
     await user.clear(titleInput)
     await user.type(titleInput, 'Prompt revisado')
 
@@ -134,7 +134,7 @@ describe('GeneratePromptDrawer', () => {
   it('shows the create and copy action', async () => {
     renderDrawer()
 
-    await screen.findByDisplayValue('Revisar plano: plan.md')
+    await screen.findByDisplayValue('Review plan: plan.md')
     expect(screen.getByRole('button', { name: /^Criar e copiar$/ })).toBeInTheDocument()
   })
 

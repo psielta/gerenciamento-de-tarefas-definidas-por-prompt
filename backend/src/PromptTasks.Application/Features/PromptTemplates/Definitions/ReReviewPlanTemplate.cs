@@ -15,6 +15,6 @@ public sealed class ReReviewPlanTemplate : IPromptTemplateDefinition
         PromptTemplateContext context,
         CancellationToken cancellationToken) =>
         Task.FromResult(new RenderedPromptTemplate(
-            $"Re-review do plano: {context.DisplayName}",
-            $"Eu passei os pontos anteriores para o Claude corrigir no plano \"{context.AbsolutePath}\". Valide novamente o plano atualizado, aprove-o se estiver correto ou aponte as melhorias que ainda faltam."));
+            $"Re-review plan: {context.DisplayName}",
+            $"I passed the previous points to Claude to fix in the plan \"{context.AbsolutePath}\". Validate the updated plan again, approve it if correct, or point out the improvements that are still missing."));
 }

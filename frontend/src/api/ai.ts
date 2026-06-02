@@ -11,6 +11,7 @@ import {
   type GeminiModel,
   type RefinedPrompt,
   type RefinePromptRequest,
+  type TranslatePromptRequest,
 } from './schemas'
 
 const AI_REQUEST_TIMEOUT_MS = 300_000
@@ -38,6 +39,11 @@ export async function updateAiSettings(settings: {
 
 export async function refinePrompt(params: RefinePromptRequest): Promise<RefinedPrompt> {
   const data = await api.post('ai/refine', { json: params, timeout: AI_REQUEST_TIMEOUT_MS }).json()
+  return refinedPromptSchema.parse(data)
+}
+
+export async function translatePrompt(params: TranslatePromptRequest): Promise<RefinedPrompt> {
+  const data = await api.post('ai/translate', { json: params, timeout: AI_REQUEST_TIMEOUT_MS }).json()
   return refinedPromptSchema.parse(data)
 }
 

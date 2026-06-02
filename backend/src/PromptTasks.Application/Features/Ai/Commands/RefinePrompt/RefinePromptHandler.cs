@@ -17,6 +17,7 @@ public sealed class RefinePromptHandler(
     private const string RefineSystemInstruction =
         "Você é um especialista em engenharia de prompts. " +
         "Otimize o prompt do usuário para clareza, completude e eficácia. " +
+        "Escreva SEMPRE o prompt final em inglês, independentemente do idioma de entrada. " +
         "Responda APENAS com o prompt otimizado em Markdown compatível com TipTap " +
         "(use títulos, listas, negrito e code blocks; sem HTML). " +
         "Preserve menções @caminho/arquivo intactas. " +
