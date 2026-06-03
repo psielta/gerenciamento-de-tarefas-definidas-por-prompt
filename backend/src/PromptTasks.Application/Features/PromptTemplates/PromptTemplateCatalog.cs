@@ -10,7 +10,10 @@ public sealed class PromptTemplateCatalog : IPromptTemplateCatalog
 
     public PromptTemplateCatalog(IEnumerable<IPromptTemplateDefinition> templates)
     {
-        _templates = templates.OrderBy(template => template.Key).ToList();
+        _templates = templates
+            .OrderBy(template => GetDisplayOrder(template.Key))
+            .ThenBy(template => template.Key)
+            .ToList();
         _templatesByKey = new Dictionary<PromptTemplateKey, IPromptTemplateDefinition>();
 
         foreach (var template in _templates)
@@ -28,4 +31,19 @@ public sealed class PromptTemplateCatalog : IPromptTemplateCatalog
         _templatesByKey.TryGetValue(key, out var template)
             ? template
             : throw new NotFoundException("Prompt template was not found.");
+
+    private static int GetDisplayOrder(PromptTemplateKey key) =>
+        key switch
+        {
+            PromptTemplateKey.ReviewPlan => 10,
+            PromptTemplateKey.ImplementPlan => 20,
+            PromptTemplateKey.ReviewPlanWithParentPrompt => 30,
+            PromptTemplateKey.ReReviewPlan => 40,
+            PromptTemplateKey.ImplementPlanInWorktree => 50,
+            PromptTemplateKey.ReviewPullRequest => 60,
+            PromptTemplateKey.ReReviewPullRequest => 61,
+            PromptTemplateKey.MergePullRequest => 70,
+            PromptTemplateKey.RebaseCurrentBranch => 80,
+            _ => 1_000 + (int)key
+        };
 }

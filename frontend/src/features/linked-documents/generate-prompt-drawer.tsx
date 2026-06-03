@@ -13,6 +13,7 @@ import { FormField } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   AGENT_OPTIONS,
   KIND_OPTIONS,
@@ -41,9 +42,11 @@ export function GeneratePromptDrawer({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [contentOverride, setContentOverride] = useState<string | null>(null)
   const [editorMentions, setEditorMentions] = useState<FileMention[] | null>(null)
-  const templateInput = template.input ?? null
-  const [templateInputValue, setTemplateInputValue] = useState('')
-  const [confirmedTemplateInput, setConfirmedTemplateInput] = useState<string | null>(templateInput ? null : '')
+  const templateInputs = template.inputs?.length ? template.inputs : template.input ? [template.input] : []
+  const [templateInputValues, setTemplateInputValues] = useState<Record<string, string>>({})
+  const [confirmedTemplateInputs, setConfirmedTemplateInputs] = useState<Record<string, string> | null>(
+    templateInputs.length > 0 ? null : {},
+  )
   const form = useForm<PromptFormValues>({
     resolver: zodResolver(promptFormSchema),
     defaultValues: {
@@ -55,15 +58,28 @@ export function GeneratePromptDrawer({
     },
   })
 
-  const normalizedTemplateInput = templateInputValue.trim()
-  const activeTemplateInput = templateInput ? confirmedTemplateInput : undefined
-  const canRenderDraft = !templateInput || Boolean(confirmedTemplateInput)
+  const normalizedTemplateInputs = templateInputs.reduce<Record<string, string>>((values, input) => {
+    values[input.key] = (templateInputValues[input.key] ?? '').trim()
+    return values
+  }, {})
+  const activeTemplateInputs = templateInputs.length > 0 ? confirmedTemplateInputs ?? undefined : undefined
+  const canRenderDraft = templateInputs.length === 0 || confirmedTemplateInputs !== null
   const hasChangedTemplateInput = Boolean(
-    templateInput && confirmedTemplateInput !== null && normalizedTemplateInput !== confirmedTemplateInput,
+    templateInputs.length > 0 &&
+      confirmedTemplateInputs !== null &&
+      templateInputs.some((input) => normalizedTemplateInputs[input.key] !== (confirmedTemplateInputs[input.key] ?? '')),
   )
+  const canSubmitTemplateInputs = templateInputs.every(
+    (input) => !input.required || Boolean(normalizedTemplateInputs[input.key]),
+  )
+  const templateInputLabel = templateInputs.map((input) => input.label).join(' e ')
   const draftQuery = useQuery({
-    queryKey: queryKeys.promptTemplates.draft(linkedDocumentId, template.key, activeTemplateInput ?? undefined),
-    queryFn: () => renderPromptDraft(linkedDocumentId, template.key, { pullRequest: activeTemplateInput ?? undefined }),
+    queryKey: queryKeys.promptTemplates.draft(linkedDocumentId, template.key, activeTemplateInputs),
+    queryFn: () =>
+      renderPromptDraft(linkedDocumentId, template.key, {
+        pullRequest: activeTemplateInputs?.pullRequest,
+        inputs: activeTemplateInputs,
+      }),
     enabled: canRenderDraft,
     retry: false,
   })
@@ -142,18 +158,19 @@ export function GeneratePromptDrawer({
   }, [isBusy, isDirty, onClose])
 
   const submitTemplateInput = () => {
-    if (!templateInput) {
+    if (templateInputs.length === 0) {
       return
     }
 
-    if (templateInput.required && !normalizedTemplateInput) {
-      toast.error(`Informe ${templateInput.label}.`)
+    const missingInput = templateInputs.find((input) => input.required && !normalizedTemplateInputs[input.key])
+    if (missingInput) {
+      toast.error(`Informe ${missingInput.label}.`)
       return
     }
 
     setContentOverride(null)
     setEditorMentions(null)
-    setConfirmedTemplateInput(normalizedTemplateInput)
+    setConfirmedTemplateInputs({ ...normalizedTemplateInputs })
   }
 
   useEffect(() => {
@@ -204,29 +221,56 @@ export function GeneratePromptDrawer({
         </div>
 
         <div className="min-h-0 overflow-hidden p-4">
-          {templateInput ? (
+          {templateInputs.length > 0 ? (
             <div className="mb-4 grid gap-2 rounded-md border border-border bg-background p-3">
-              <FormField label={templateInput.label} htmlFor="generated-prompt-template-input">
-                <div className="flex gap-2">
-                  <Input
-                    id="generated-prompt-template-input"
-                    value={templateInputValue}
-                    onChange={(event) => setTemplateInputValue(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault()
-                        submitTemplateInput()
-                      }
-                    }}
-                    placeholder={templateInput.placeholder}
-                    disabled={isBusy}
-                  />
-                  <Button type="button" variant="secondary" onClick={submitTemplateInput} disabled={isBusy || !normalizedTemplateInput}>
-                    Gerar
-                  </Button>
-                </div>
-              </FormField>
-              <p className="text-xs text-muted-foreground">{templateInput.helpText}</p>
+              {templateInputs.map((templateInput) => {
+                const inputId = `generated-prompt-template-input-${templateInput.key}`
+
+                return (
+                  <FormField key={templateInput.key} label={templateInput.label} htmlFor={inputId}>
+                    {templateInput.multiline ? (
+                      <Textarea
+                        id={inputId}
+                        value={templateInputValues[templateInput.key] ?? ''}
+                        onChange={(event) =>
+                          setTemplateInputValues((current) => ({
+                            ...current,
+                            [templateInput.key]: event.target.value,
+                          }))
+                        }
+                        placeholder={templateInput.placeholder}
+                        disabled={isBusy}
+                        rows={5}
+                      />
+                    ) : (
+                      <Input
+                        id={inputId}
+                        value={templateInputValues[templateInput.key] ?? ''}
+                        onChange={(event) =>
+                          setTemplateInputValues((current) => ({
+                            ...current,
+                            [templateInput.key]: event.target.value,
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            submitTemplateInput()
+                          }
+                        }}
+                        placeholder={templateInput.placeholder}
+                        disabled={isBusy}
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground">{templateInput.helpText}</p>
+                  </FormField>
+                )
+              })}
+              <div className="flex justify-end">
+                <Button type="button" variant="secondary" onClick={submitTemplateInput} disabled={isBusy || !canSubmitTemplateInputs}>
+                  Gerar
+                </Button>
+              </div>
             </div>
           ) : null}
 
@@ -249,9 +293,9 @@ export function GeneratePromptDrawer({
             </div>
           ) : null}
 
-          {templateInput && !activeDraft && !draftQuery.isLoading && !draftQuery.error ? (
+          {templateInputs.length > 0 && !activeDraft && !draftQuery.isLoading && !draftQuery.error ? (
             <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-              Informe {templateInput.label} para gerar a previa do prompt filho.
+              Informe {templateInputLabel} para gerar a previa do prompt filho.
             </div>
           ) : null}
 

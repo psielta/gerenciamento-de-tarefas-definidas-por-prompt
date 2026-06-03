@@ -33,6 +33,7 @@ const template: PromptTemplate = {
   defaultTargetAgent: 'Codex',
   defaultKind: 'Planning',
   input: null,
+  inputs: [],
 }
 const prTemplate: PromptTemplate = {
   key: 'ReviewPullRequest',
@@ -46,7 +47,42 @@ const prTemplate: PromptTemplate = {
     placeholder: '#123 ou URL da PR',
     helpText: 'Informe o numero ou link da PR.',
     required: true,
+    multiline: false,
   },
+  inputs: [],
+}
+const reReviewPrTemplate: PromptTemplate = {
+  key: 'ReReviewPullRequest',
+  displayName: 'Re-review de PR',
+  description: 'Valida novamente a PR',
+  defaultTargetAgent: 'Codex',
+  defaultKind: 'General',
+  input: {
+    key: 'pullRequest',
+    label: 'PR',
+    placeholder: '#123 ou URL da PR',
+    helpText: 'Informe o numero ou link da PR.',
+    required: true,
+    multiline: false,
+  },
+  inputs: [
+    {
+      key: 'pullRequest',
+      label: 'PR',
+      placeholder: '#123 ou URL da PR',
+      helpText: 'Informe o numero ou link da PR.',
+      required: true,
+      multiline: false,
+    },
+    {
+      key: 'reviewNotes',
+      label: 'Pontos da revisao anterior',
+      placeholder: 'Cole os pontos apontados na revisao anterior',
+      helpText: 'Informe os pontos da revisao anterior.',
+      required: true,
+      multiline: true,
+    },
+  ],
 }
 const draftContent =
   'Given the plan "C:\\Users\\psiel\\.claude\\plans\\plan.md", validate the plan, approve it, or point out improvements.'
@@ -150,7 +186,31 @@ describe('GeneratePromptDrawer', () => {
       expect(renderPromptDraft).toHaveBeenCalledWith(
         '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
         'ReviewPullRequest',
-        { pullRequest: '42' },
+        { pullRequest: '42', inputs: { pullRequest: '42' } },
+      )
+    })
+  })
+
+  it('asks for the PR and previous review notes before rendering a pull request re-review draft', async () => {
+    const user = userEvent.setup()
+    renderDrawer(reReviewPrTemplate)
+
+    expect(renderPromptDraft).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('PR'), '42')
+    await user.type(screen.getByLabelText('Pontos da revisao anterior'), 'High: missing regression test.')
+    await user.click(screen.getByRole('button', { name: /^Gerar$/ }))
+
+    await waitFor(() => {
+      expect(renderPromptDraft).toHaveBeenCalledWith(
+        '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+        'ReReviewPullRequest',
+        {
+          pullRequest: '42',
+          inputs: {
+            pullRequest: '42',
+            reviewNotes: 'High: missing regression test.',
+          },
+        },
       )
     })
   })

@@ -8,11 +8,13 @@ public sealed record PromptTemplateDto(
     string Description,
     TargetAgent DefaultTargetAgent,
     PromptKind DefaultKind,
-    PromptTemplateInputDto? Input);
+    PromptTemplateInputDto? Input,
+    IReadOnlyList<PromptTemplateInputDto> Inputs);
 
 public sealed record PromptTemplateInputDto(
     string Key,
     string Label,
     string Placeholder,
     string HelpText,
-    bool Required);
+    bool Required,
+    bool Multiline);

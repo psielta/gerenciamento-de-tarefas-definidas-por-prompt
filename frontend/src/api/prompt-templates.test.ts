@@ -35,6 +35,7 @@ describe('prompt template api', () => {
           defaultTargetAgent: 'Codex',
           defaultKind: 'Planning',
           input: null,
+          inputs: [],
         },
         {
           key: 'MergePullRequest',
@@ -48,7 +49,18 @@ describe('prompt template api', () => {
             placeholder: '#123 ou URL da PR',
             helpText: 'Informe o numero ou link da PR.',
             required: true,
+            multiline: false,
           },
+          inputs: [
+            {
+              key: 'pullRequest',
+              label: 'PR',
+              placeholder: '#123 ou URL da PR',
+              helpText: 'Informe o numero ou link da PR.',
+              required: true,
+              multiline: false,
+            },
+          ],
         },
       ]),
     )
@@ -61,6 +73,7 @@ describe('prompt template api', () => {
         defaultTargetAgent: 'Codex',
         defaultKind: 'Planning',
         input: null,
+        inputs: [],
       },
       {
         key: 'MergePullRequest',
@@ -74,7 +87,18 @@ describe('prompt template api', () => {
           placeholder: '#123 ou URL da PR',
           helpText: 'Informe o numero ou link da PR.',
           required: true,
+          multiline: false,
         },
+        inputs: [
+          {
+            key: 'pullRequest',
+            label: 'PR',
+            placeholder: '#123 ou URL da PR',
+            helpText: 'Informe o numero ou link da PR.',
+            required: true,
+            multiline: false,
+          },
+        ],
       },
     ])
     expect(apiMock.get).toHaveBeenCalledWith('prompt-templates')
@@ -103,7 +127,7 @@ describe('prompt template api', () => {
     })
     expect(apiMock.post).toHaveBeenCalledWith(
       'linked-documents/019e9f6a-94e7-7a23-965d-c8b05c63ee59/prompt-drafts',
-      { json: { templateKey: 'ReviewPlan', pullRequest: undefined } },
+      { json: { templateKey: 'ReviewPlan' } },
     )
   })
 
@@ -152,6 +176,43 @@ describe('prompt template api', () => {
     expect(apiMock.post).toHaveBeenCalledWith(
       'linked-documents/019e9f6a-94e7-7a23-965d-c8b05c63ee59/prompt-drafts',
       { json: { templateKey: 'MergePullRequest', pullRequest: '42' } },
+    )
+  })
+
+  it('sends multiple inputs when rendering PR re-review drafts', async () => {
+    apiMock.post.mockReturnValue(
+      jsonResponse({
+        templateKey: 'ReReviewPullRequest',
+        linkedDocumentId: '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+        workingDirectoryId: '019e9f6a-9fb2-7f24-ac3a-bf099d2c93c0',
+        parentPromptId: '019e9f6a-a269-7991-95d5-4e602dcf773d',
+        title: 'Re-review PR #42',
+        content: 'Re-review the PR #42.',
+        targetAgent: 'Codex',
+        kind: 'General',
+      }),
+    )
+
+    await renderPromptDraft('019e9f6a-94e7-7a23-965d-c8b05c63ee59', 'ReReviewPullRequest', {
+      pullRequest: '42',
+      inputs: {
+        pullRequest: '42',
+        reviewNotes: 'High: missing regression test.',
+      },
+    })
+
+    expect(apiMock.post).toHaveBeenCalledWith(
+      'linked-documents/019e9f6a-94e7-7a23-965d-c8b05c63ee59/prompt-drafts',
+      {
+        json: {
+          templateKey: 'ReReviewPullRequest',
+          pullRequest: '42',
+          inputs: {
+            pullRequest: '42',
+            reviewNotes: 'High: missing regression test.',
+          },
+        },
+      },
     )
   })
 

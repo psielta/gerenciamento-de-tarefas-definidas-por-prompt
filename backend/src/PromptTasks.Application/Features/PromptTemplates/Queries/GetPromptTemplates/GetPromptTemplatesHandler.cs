@@ -12,22 +12,31 @@ public sealed class GetPromptTemplatesHandler(IPromptTemplateCatalog catalog)
     {
         var templates = catalog
             .GetAll()
-            .Select(template => new PromptTemplateDto(
-                template.Key,
-                template.DisplayName,
-                template.Description,
-                template.DefaultTargetAgent,
-                template.DefaultKind,
-                template.Input is null
-                    ? null
-                    : new PromptTemplateInputDto(
-                        template.Input.Key,
-                        template.Input.Label,
-                        template.Input.Placeholder,
-                        template.Input.HelpText,
-                        template.Input.Required)))
+            .Select(template =>
+            {
+                var input = template.Input is null ? null : ToDto(template.Input);
+                var inputs = template.Inputs.Select(ToDto).ToList();
+
+                return new PromptTemplateDto(
+                    template.Key,
+                    template.DisplayName,
+                    template.Description,
+                    template.DefaultTargetAgent,
+                    template.DefaultKind,
+                    input,
+                    inputs);
+            })
             .ToList();
 
         return Task.FromResult<IReadOnlyList<PromptTemplateDto>>(templates);
     }
+
+    private static PromptTemplateInputDto ToDto(PromptTemplateInputDefinition input) =>
+        new(
+            input.Key,
+            input.Label,
+            input.Placeholder,
+            input.HelpText,
+            input.Required,
+            input.Multiline);
 }

@@ -10,6 +10,10 @@ public interface IPromptTemplateDefinition
     TargetAgent DefaultTargetAgent { get; }
     PromptKind DefaultKind { get; }
     PromptTemplateInputDefinition? Input { get; }
+    IReadOnlyList<PromptTemplateInputDefinition> Inputs =>
+        Input is null
+            ? Array.Empty<PromptTemplateInputDefinition>()
+            : new[] { Input };
 
     Task<RenderedPromptTemplate> RenderAsync(
         PromptTemplateContext context,
@@ -23,4 +27,5 @@ public sealed record PromptTemplateInputDefinition(
     string Label,
     string Placeholder,
     string HelpText,
-    bool Required = true);
+    bool Required = true,
+    bool Multiline = false);

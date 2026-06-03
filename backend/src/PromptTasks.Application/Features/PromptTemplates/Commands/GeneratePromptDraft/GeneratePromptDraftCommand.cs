@@ -7,5 +7,6 @@ namespace PromptTasks.Application.Features.PromptTemplates.Commands.GenerateProm
 public sealed record GeneratePromptDraftCommand(
     Guid LinkedDocumentId,
     PromptTemplateKey TemplateKey,
-    string? PullRequest = null)
+    string? PullRequest = null,
+    IReadOnlyDictionary<string, string>? Inputs = null)
     : IRequest<GeneratedPromptDraftDto>;

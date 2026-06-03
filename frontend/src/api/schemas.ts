@@ -126,6 +126,7 @@ export const promptTemplateInputSchema = z.object({
   placeholder: z.string(),
   helpText: z.string(),
   required: z.boolean(),
+  multiline: z.boolean().optional().default(false),
 })
 
 export const promptTemplateSchema = z.object({
@@ -135,6 +136,7 @@ export const promptTemplateSchema = z.object({
   defaultTargetAgent: targetAgentSchema,
   defaultKind: promptKindSchema,
   input: promptTemplateInputSchema.nullable().optional(),
+  inputs: z.array(promptTemplateInputSchema).optional().default([]),
 })
 
 export const promptDraftSchema = z.object({

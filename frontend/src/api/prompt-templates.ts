@@ -14,11 +14,24 @@ export async function listPromptTemplates(): Promise<PromptTemplate[]> {
 export async function renderPromptDraft(
   linkedDocumentId: string,
   templateKey: string,
-  options?: { pullRequest?: string },
+  options?: { pullRequest?: string; inputs?: Record<string, string> },
 ): Promise<GeneratedPromptDraft> {
+  const payload: {
+    templateKey: string
+    pullRequest?: string
+    inputs?: Record<string, string>
+  } = { templateKey }
+
+  if (options?.pullRequest !== undefined) {
+    payload.pullRequest = options.pullRequest
+  }
+  if (options?.inputs !== undefined) {
+    payload.inputs = options.inputs
+  }
+
   const data = await api
     .post(`linked-documents/${linkedDocumentId}/prompt-drafts`, {
-      json: { templateKey, pullRequest: options?.pullRequest },
+      json: payload,
     })
     .json<unknown>()
 

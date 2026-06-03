@@ -241,6 +241,14 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             template.Input != null &&
             template.Input.Key == "pullRequest");
         templates.Should().Contain(template =>
+            template.Key == PromptTemplateKey.ReReviewPullRequest &&
+            template.DefaultTargetAgent == TargetAgent.Codex &&
+            template.DefaultKind == PromptKind.General &&
+            template.Input != null &&
+            template.Input.Key == "pullRequest" &&
+            template.Inputs.Count == 2 &&
+            template.Inputs.Any(input => input.Key == "reviewNotes" && input.Multiline));
+        templates.Should().Contain(template =>
             template.Key == PromptTemplateKey.MergePullRequest &&
             template.DefaultTargetAgent == TargetAgent.Codex &&
             template.DefaultKind == PromptKind.General &&
@@ -305,6 +313,25 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
         prDraft!.Title.Should().Be("Review PR #42: review-plan.md");
         prDraft.Content.Should().Contain($"Review the PR #42 that implements the plan `{planPath}`.");
 
+        var reReviewDraftResponse = await client.PostAsJsonAsync(
+            $"/api/linked-documents/{linked.Id}/prompt-drafts",
+            new
+            {
+                templateKey = PromptTemplateKey.ReReviewPullRequest,
+                inputs = new Dictionary<string, string>
+                {
+                    ["pullRequest"] = "42",
+                    ["reviewNotes"] = "High: missing integration test."
+                }
+            },
+            JsonOptions);
+        reReviewDraftResponse.EnsureSuccessStatusCode();
+        var reReviewDraft = await reReviewDraftResponse.Content.ReadFromJsonAsync<GeneratedPromptDraftDto>(JsonOptions);
+        reReviewDraft!.Title.Should().Be("Re-review PR #42: review-plan.md");
+        reReviewDraft.Content.Should().StartWith("/review");
+        reReviewDraft.Content.Should().Contain($"The PR implements the plan `{planPath}`.");
+        reReviewDraft.Content.Should().Contain("High: missing integration test.");
+
         var mergeDraftResponse = await client.PostAsJsonAsync(
             $"/api/linked-documents/{linked.Id}/prompt-drafts",
             new { templateKey = PromptTemplateKey.MergePullRequest, pullRequest = "42" },
@@ -365,6 +392,16 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             new { templateKey = PromptTemplateKey.ReviewPullRequest },
             JsonOptions);
         missingPrResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var missingReReviewNotesResponse = await client.PostAsJsonAsync(
+            $"/api/linked-documents/{linked.Id}/prompt-drafts",
+            new
+            {
+                templateKey = PromptTemplateKey.ReReviewPullRequest,
+                inputs = new Dictionary<string, string> { ["pullRequest"] = "42" }
+            },
+            JsonOptions);
+        missingReReviewNotesResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var missingMergePrResponse = await client.PostAsJsonAsync(
             $"/api/linked-documents/{linked.Id}/prompt-drafts",

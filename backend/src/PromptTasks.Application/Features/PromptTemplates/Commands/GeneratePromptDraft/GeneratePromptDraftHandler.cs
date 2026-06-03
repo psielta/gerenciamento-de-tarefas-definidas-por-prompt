@@ -21,12 +21,14 @@ public sealed class GeneratePromptDraftHandler(
             currentUser.UserId);
         var template = catalog.Get(request.TemplateKey);
         var displayName = document.DisplayName ?? Path.GetFileName(document.AbsolutePath);
+        var inputs = NormalizeInputs(request.Inputs, request.PullRequest);
         var templateContext = new PromptTemplateContext(
             document.AbsolutePath,
             displayName,
             prompt.Content,
             ct => LoadLatestPlanContentAsync(document.Id, ct),
-            request.PullRequest);
+            GetInputValue(inputs, "pullRequest"),
+            inputs);
         var rendered = await template.RenderAsync(templateContext, cancellationToken);
 
         return new GeneratedPromptDraftDto(
@@ -51,4 +53,32 @@ public sealed class GeneratePromptDraftHandler(
 
         return Task.FromResult(content);
     }
+
+    private static IReadOnlyDictionary<string, string> NormalizeInputs(
+        IReadOnlyDictionary<string, string>? inputs,
+        string? pullRequest)
+    {
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (inputs is not null)
+        {
+            foreach (var (key, value) in inputs)
+            {
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    normalized[key.Trim()] = value?.Trim() ?? string.Empty;
+                }
+            }
+        }
+
+        if (!normalized.ContainsKey("pullRequest") && pullRequest is not null)
+        {
+            normalized["pullRequest"] = pullRequest.Trim();
+        }
+
+        return normalized;
+    }
+
+    private static string? GetInputValue(IReadOnlyDictionary<string, string> inputs, string key) =>
+        inputs.TryGetValue(key, out var value) ? value : null;
 }
