@@ -177,7 +177,9 @@ public sealed class CreatePromptHandler(
         var priorEntries = context.PromptWorkflowEvents.Count(@event =>
             @event.PromptWorkflowId == workflow.Id &&
             @event.PhaseId == target.Id &&
-            (@event.Type == WorkflowEventType.PhaseChanged || @event.Type == WorkflowEventType.WorkflowStarted));
+            @event.Type == WorkflowEventType.PhaseChanged &&
+            @event.Note != null &&
+            (@event.Note.StartsWith("Gerado via ") || @event.Note.StartsWith("Re-review #")));
         var iteration = priorEntries + 1;
         var actor = target.DefaultActor;
         WorkflowMutationHelpers.EnterPhase(workflow, target, actor, now, iteration);

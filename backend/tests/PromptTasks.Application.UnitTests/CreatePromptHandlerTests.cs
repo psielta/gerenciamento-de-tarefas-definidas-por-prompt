@@ -333,6 +333,20 @@ public sealed class CreatePromptHandlerTests
             @event.Type == WorkflowEventType.PhaseChanged &&
             @event.Note == "Gerado via \"Revisar plano com prompt pai\"");
 
+        var reviewPhase = context.PromptWorkflowPhaseItems.Single(phase =>
+            phase.PromptWorkflowId == parentWorkflow.Id &&
+            phase.Name == parentWorkflow.CurrentPhaseName);
+        context.PromptWorkflowEventItems.Add(new PromptWorkflowEvent
+        {
+            PromptWorkflowId = parentWorkflow.Id,
+            Type = WorkflowEventType.PhaseChanged,
+            PhaseId = reviewPhase.Id,
+            PhaseNameSnapshot = reviewPhase.Name,
+            Actor = reviewPhase.DefaultActor,
+            Note = null,
+            OccurredAtUtc = DateTimeOffset.UtcNow
+        });
+
         await handler.Handle(
             new CreatePromptCommand(
                 directory.Id,
@@ -356,6 +370,47 @@ public sealed class CreatePromptHandlerTests
             summary.PromptId == parent.Id &&
             summary.CurrentPhaseName == "Revisão do plano" &&
             summary.CurrentPhaseIteration == 2);
+
+        var unchangedPhaseName = parentWorkflow.CurrentPhaseName;
+        var unchangedIteration = parentWorkflow.CurrentPhaseIteration;
+        var unchangedEventCount = context.PromptWorkflowEventItems.Count;
+        await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                parent.Id,
+                "Manual child",
+                "Manual",
+                TargetAgent.Codex,
+                PromptKind.General,
+                PromptStatus.Draft,
+                null,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        parentWorkflow.CurrentPhaseName.Should().Be(unchangedPhaseName);
+        parentWorkflow.CurrentPhaseIteration.Should().Be(unchangedIteration);
+        context.PromptWorkflowEventItems.Should().HaveCount(unchangedEventCount);
+
+        await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                parent.Id,
+                "Merge PR",
+                "Merge",
+                TargetAgent.Codex,
+                PromptKind.General,
+                PromptStatus.Draft,
+                PromptTemplateKey.MergePullRequest,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        parentWorkflow.CurrentPhaseName.Should().Be("Commit/Merge");
+        parentWorkflow.CurrentActor.Should().Be(WorkflowActor.Codex);
+        parentWorkflow.CurrentPhaseIteration.Should().Be(1);
+        context.PromptWorkflowEventItems.Should().Contain(@event =>
+            @event.PromptWorkflowId == parentWorkflow.Id &&
+            @event.Type == WorkflowEventType.PhaseChanged &&
+            @event.Note == "Gerado via \"Fazer merge da PR\"");
     }
 
     private static PromptTemplateCatalog CreateCatalog() =>
