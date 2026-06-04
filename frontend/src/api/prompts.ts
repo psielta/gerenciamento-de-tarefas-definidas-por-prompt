@@ -8,6 +8,7 @@ import {
   type Prompt,
   type PromptKind,
   type PromptStatus,
+  type PromptTemplateKey,
   type PromptVersion,
   type TargetAgent,
 } from './schemas'
@@ -20,10 +21,11 @@ export type PromptPayload = {
   targetAgent: TargetAgent
   kind: PromptKind
   status: PromptStatus
+  sourceTemplateKey?: PromptTemplateKey
   mentions: FileMention[]
 }
 
-export type UpdatePromptPayload = Omit<PromptPayload, 'workingDirectoryId'> & {
+export type UpdatePromptPayload = Omit<PromptPayload, 'workingDirectoryId' | 'sourceTemplateKey'> & {
   rowVersion: string
 }
 

@@ -52,6 +52,7 @@ public sealed class PromptsController(ISender sender) : ControllerBase
                 request.TargetAgent,
                 request.Kind,
                 request.Status,
+                request.SourceTemplateKey,
                 request.Mentions),
             cancellationToken);
 
@@ -105,6 +106,7 @@ public sealed class PromptsController(ISender sender) : ControllerBase
         TargetAgent TargetAgent,
         PromptKind Kind,
         PromptStatus Status,
+        PromptTemplateKey? SourceTemplateKey,
         IReadOnlyList<FileMentionDto>? Mentions);
 
     public sealed record UpdatePromptRequest(

@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -22,6 +23,8 @@ public sealed class ReReviewPullRequestTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para revisar novamente uma PR apos correcoes dos pontos anteriores.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.CodeReview;
+    public bool IsReReview => true;
     public PromptTemplateInputDefinition? Input => PullRequestInput;
     public IReadOnlyList<PromptTemplateInputDefinition> Inputs => new[] { PullRequestInput, ReviewNotesInput };
 

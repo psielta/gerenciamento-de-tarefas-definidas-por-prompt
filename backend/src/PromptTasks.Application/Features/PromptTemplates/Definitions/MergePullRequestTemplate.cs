@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,7 @@ public sealed class MergePullRequestTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para o Codex fazer merge seguro da PR.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.Merge;
     public PromptTemplateInputDefinition? Input => new(
         "pullRequest",
         "PR",

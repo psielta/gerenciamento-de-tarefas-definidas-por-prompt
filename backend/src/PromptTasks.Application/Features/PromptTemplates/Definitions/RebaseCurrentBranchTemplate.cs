@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,7 @@ public sealed class RebaseCurrentBranchTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para atualizar a branch ou worktree atual com as ultimas alteracoes da main remota usando rebase.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.Rebase;
     public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(

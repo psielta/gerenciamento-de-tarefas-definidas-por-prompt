@@ -36,6 +36,7 @@ public static class WorkflowDtoMapper
             workflow.CurrentActor,
             workflow.StartedAtUtc,
             workflow.EnteredCurrentPhaseAtUtc,
+            workflow.CurrentPhaseIteration,
             workflow.UpdatedAtUtc,
             workflow.RowVersion.ToString(CultureInfo.InvariantCulture),
             phases.OrderBy(phase => phase.OrderIndex).Select(phase => phase.ToDto()).ToList(),

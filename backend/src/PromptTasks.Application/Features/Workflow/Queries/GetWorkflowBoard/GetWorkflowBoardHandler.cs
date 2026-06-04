@@ -104,6 +104,7 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
                 workflow?.CurrentPhaseColor,
                 workflow?.CurrentActor,
                 workflow?.EnteredCurrentPhaseAtUtc,
+                workflow?.CurrentPhaseIteration ?? 1,
                 updatedAtUtc,
                 promptsWithChildren.Contains(prompt.Id),
                 promptsWithLinkedPlan.Contains(prompt.Id),

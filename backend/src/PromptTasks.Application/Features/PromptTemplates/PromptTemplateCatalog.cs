@@ -42,8 +42,8 @@ public sealed class PromptTemplateCatalog : IPromptTemplateCatalog
             PromptTemplateKey.ImplementPlanInWorktree => 50,
             PromptTemplateKey.ReviewPullRequest => 60,
             PromptTemplateKey.ReReviewPullRequest => 61,
+            PromptTemplateKey.RebaseCurrentBranch => 65,
             PromptTemplateKey.MergePullRequest => 70,
-            PromptTemplateKey.RebaseCurrentBranch => 80,
             _ => 1_000 + (int)key
         };
 }

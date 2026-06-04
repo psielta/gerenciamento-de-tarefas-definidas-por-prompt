@@ -122,6 +122,7 @@ export function GeneratePromptDrawer({
         targetAgent: values.targetAgent,
         kind: values.kind,
         status: 'Draft',
+        sourceTemplateKey: activeDraft.templateKey,
         mentions: editorMentions ?? [],
       })
     },

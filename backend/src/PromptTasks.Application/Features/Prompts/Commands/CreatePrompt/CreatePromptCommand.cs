@@ -12,4 +12,5 @@ public sealed record CreatePromptCommand(
     TargetAgent TargetAgent,
     PromptKind Kind,
     PromptStatus Status,
+    PromptTemplateKey? SourceTemplateKey,
     IReadOnlyList<FileMentionDto>? Mentions) : IRequest<PromptDto>;

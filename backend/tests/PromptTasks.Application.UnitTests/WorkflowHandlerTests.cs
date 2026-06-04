@@ -20,6 +20,23 @@ namespace PromptTasks.Application.UnitTests;
 public sealed class WorkflowHandlerTests
 {
     [Fact]
+    public void WorkflowDefaults_defines_the_default_developer_pr_flow()
+    {
+        WorkflowDefaults.Phases.Select(phase => (phase.Name, phase.DefaultActor, phase.Role)).Should()
+            .Equal(
+                ("Engenharia de prompt", WorkflowActor.Human, WorkflowPhaseRole.PromptEngineering),
+                ("Planejamento", WorkflowActor.ClaudeCode, WorkflowPhaseRole.Planning),
+                ("Revisão do plano", WorkflowActor.Codex, WorkflowPhaseRole.PlanReview),
+                ("Correção do plano", WorkflowActor.ClaudeCode, WorkflowPhaseRole.PlanCorrection),
+                ("Implementação", WorkflowActor.Codex, WorkflowPhaseRole.Implementation),
+                ("Revisão de código", WorkflowActor.ClaudeCode, WorkflowPhaseRole.CodeReview),
+                ("Correção da revisão", WorkflowActor.Codex, WorkflowPhaseRole.ReviewCorrection),
+                ("Teste prático", WorkflowActor.Human, WorkflowPhaseRole.PracticalTest),
+                ("Atualizar branch com main", WorkflowActor.Codex, WorkflowPhaseRole.Rebase),
+                ("Commit/Merge", WorkflowActor.Codex, WorkflowPhaseRole.Merge));
+    }
+
+    [Fact]
     public async Task StartWorkflow_copies_default_phases_and_records_started_event()
     {
         var fixture = new Fixture();
@@ -28,8 +45,11 @@ public sealed class WorkflowHandlerTests
 
         workflow.Status.Should().Be(PromptWorkflowStatus.Active);
         workflow.Phases.Should().HaveCount(WorkflowDefaults.Phases.Count);
-        workflow.CurrentPhaseName.Should().Be("Planejamento");
-        workflow.CurrentActor.Should().Be(WorkflowActor.ClaudeCode);
+        workflow.Phases.Should().OnlyContain(phase =>
+            WorkflowDefaults.Phases.Any(seed => seed.Name == phase.Name));
+        workflow.CurrentPhaseName.Should().Be("Engenharia de prompt");
+        workflow.CurrentActor.Should().Be(WorkflowActor.Human);
+        workflow.CurrentPhaseIteration.Should().Be(1);
         workflow.Events.Should().ContainSingle(@event => @event.Type == WorkflowEventType.WorkflowStarted);
         fixture.Notifier.Changes.Should().NotBeEmpty();
     }
@@ -53,8 +73,9 @@ public sealed class WorkflowHandlerTests
 
         var advanced = await fixture.AdvanceAsync(started.RowVersion);
 
-        advanced.CurrentPhaseName.Should().Be("Revisão do plano");
-        advanced.CurrentActor.Should().Be(WorkflowActor.Codex);
+        advanced.CurrentPhaseName.Should().Be("Planejamento");
+        advanced.CurrentActor.Should().Be(WorkflowActor.ClaudeCode);
+        advanced.CurrentPhaseIteration.Should().Be(1);
         advanced.Events.Last().Type.Should().Be(WorkflowEventType.PhaseChanged);
     }
 
@@ -80,7 +101,8 @@ public sealed class WorkflowHandlerTests
     {
         var fixture = new Fixture();
         var started = await fixture.StartAsync();
-        var atReview = await fixture.AdvanceAsync(started.RowVersion);
+        var atPlanning = await fixture.AdvanceAsync(started.RowVersion);
+        var atReview = await fixture.AdvanceAsync(atPlanning.RowVersion);
         var atFix = await fixture.AdvanceAsync(atReview.RowVersion);
         atFix.CurrentPhaseName.Should().Be("Correção do plano");
 
@@ -88,7 +110,8 @@ public sealed class WorkflowHandlerTests
         var backToReview = await fixture.SetPhaseAsync(reviewPhaseId, atFix.RowVersion);
 
         backToReview.CurrentPhaseName.Should().Be("Revisão do plano");
-        backToReview.Events.Count(@event => @event.Type == WorkflowEventType.PhaseChanged).Should().Be(3);
+        backToReview.CurrentPhaseIteration.Should().Be(1);
+        backToReview.Events.Count(@event => @event.Type == WorkflowEventType.PhaseChanged).Should().Be(4);
     }
 
     [Fact]
@@ -173,16 +196,16 @@ public sealed class WorkflowHandlerTests
     {
         var fixture = new Fixture();
         var started = await fixture.StartAsync();
-        var atReview = await fixture.AdvanceAsync(started.RowVersion);
+        var atPlanning = await fixture.AdvanceAsync(started.RowVersion);
 
-        // Planning now has a WorkflowStarted event and is no longer current, but still cannot be deleted.
-        var planningId = atReview.Phases.Single(phase => phase.Name == "Planejamento").Id;
-        var remaining = atReview.Phases
+        // Planning now has a PhaseChanged event and cannot be deleted.
+        var planningId = atPlanning.Phases.Single(phase => phase.Name == "Planejamento").Id;
+        var remaining = atPlanning.Phases
             .Where(phase => phase.Id != planningId)
             .Select((phase, index) => new WorkflowPhaseInput(phase.Id, phase.Name, phase.DefaultActor, index, phase.Color))
             .ToList();
 
-        var act = () => fixture.UpdatePhasesAsync(remaining, atReview.RowVersion);
+        var act = () => fixture.UpdatePhasesAsync(remaining, atPlanning.RowVersion);
 
         await act.Should().ThrowAsync<ConflictException>();
     }

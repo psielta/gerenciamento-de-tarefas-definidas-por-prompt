@@ -3,6 +3,7 @@ using PromptTasks.Application.Common.Exceptions;
 using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Application.Common.Mappings;
 using PromptTasks.Application.Common.Models;
+using PromptTasks.Application.Features.PromptTemplates;
 using PromptTasks.Application.Features.Prompts;
 using PromptTasks.Application.Features.Workflow;
 using PromptTasks.Domain.Prompts;
@@ -17,7 +18,8 @@ public sealed class CreatePromptHandler(
     IWorkflowNotifier workflowNotifier,
     IDailyTaskSequenceProvider dailyTaskSequenceProvider,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IPromptTemplateCatalog promptTemplateCatalog)
     : IRequestHandler<CreatePromptCommand, PromptDto>
 {
     public async Task<PromptDto> Handle(CreatePromptCommand request, CancellationToken cancellationToken)
@@ -68,6 +70,7 @@ public sealed class CreatePromptHandler(
 
         // Root prompts are tasks: start their workflow atomically so a task always has a timeline.
         var workflow = TryStartWorkflow(prompt);
+        var parentWorkflow = TryAdvanceParentWorkflow(parentPrompt, request.SourceTemplateKey, dateTimeProvider.UtcNow);
 
         await context.SaveChangesAsync(cancellationToken);
 
@@ -77,6 +80,12 @@ public sealed class CreatePromptHandler(
         {
             await workflowNotifier.TaskWorkflowChangedAsync(
                 TaskSummaryFactory.Build(context, prompt, workflow),
+                cancellationToken);
+        }
+        if (parentPrompt is not null && parentWorkflow is not null)
+        {
+            await workflowNotifier.TaskWorkflowChangedAsync(
+                TaskSummaryFactory.Build(context, parentPrompt, parentWorkflow),
                 cancellationToken);
         }
 
@@ -116,7 +125,8 @@ public sealed class CreatePromptHandler(
                 Name = templatePhase.Name,
                 DefaultActor = templatePhase.DefaultActor,
                 OrderIndex = orderIndex++,
-                Color = templatePhase.Color
+                Color = templatePhase.Color,
+                Role = templatePhase.Role
             });
         }
 
@@ -133,5 +143,61 @@ public sealed class CreatePromptHandler(
             context, workflow, WorkflowEventType.WorkflowStarted, initialPhase, initialPhase.DefaultActor, null, now);
 
         return workflow;
+    }
+
+    private PromptWorkflow? TryAdvanceParentWorkflow(
+        Prompt? parentPrompt,
+        PromptTemplateKey? sourceTemplateKey,
+        DateTimeOffset now)
+    {
+        if (parentPrompt is null || !sourceTemplateKey.HasValue)
+        {
+            return null;
+        }
+
+        var template = promptTemplateCatalog.Get(sourceTemplateKey.Value);
+        if (template.TargetPhaseRole is not { } targetRole)
+        {
+            return null;
+        }
+
+        var workflow = context.PromptWorkflows.FirstOrDefault(item => item.PromptId == parentPrompt.Id);
+        if (workflow is null || workflow.Status != PromptWorkflowStatus.Active)
+        {
+            return null;
+        }
+
+        var target = WorkflowMutationHelpers.LoadPhases(context, workflow.Id)
+            .FirstOrDefault(phase => phase.Role == targetRole);
+        if (target is null)
+        {
+            return null;
+        }
+
+        var priorEntries = context.PromptWorkflowEvents.Count(@event =>
+            @event.PromptWorkflowId == workflow.Id &&
+            @event.PhaseId == target.Id &&
+            (@event.Type == WorkflowEventType.PhaseChanged || @event.Type == WorkflowEventType.WorkflowStarted));
+        var iteration = priorEntries + 1;
+        var actor = target.DefaultActor;
+        WorkflowMutationHelpers.EnterPhase(workflow, target, actor, now, iteration);
+        WorkflowMutationHelpers.AppendEvent(
+            context,
+            workflow,
+            WorkflowEventType.PhaseChanged,
+            target,
+            actor,
+            BuildAutoAdvanceNote(template, iteration),
+            now);
+
+        return workflow;
+    }
+
+    private static string BuildAutoAdvanceNote(IPromptTemplateDefinition template, int iteration)
+    {
+        var note = $"Gerado via \"{template.DisplayName}\"";
+        return template.IsReReview || iteration > 1
+            ? $"Re-review #{iteration} - {note}"
+            : note;
     }
 }

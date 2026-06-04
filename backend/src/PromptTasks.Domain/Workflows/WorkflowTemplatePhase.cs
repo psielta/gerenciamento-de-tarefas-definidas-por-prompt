@@ -9,6 +9,7 @@ public sealed class WorkflowTemplatePhase : Entity
     public WorkflowActor DefaultActor { get; set; }
     public int OrderIndex { get; set; }
     public string Color { get; set; } = string.Empty;
+    public WorkflowPhaseRole? Role { get; set; }
 
     public WorkflowTemplate? Template { get; set; }
 }

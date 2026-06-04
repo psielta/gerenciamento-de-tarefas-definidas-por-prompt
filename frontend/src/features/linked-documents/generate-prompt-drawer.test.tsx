@@ -162,6 +162,7 @@ describe('GeneratePromptDrawer', () => {
         targetAgent: 'Codex',
         kind: 'Planning',
         status: 'Draft',
+        sourceTemplateKey: 'ReviewPlan',
         mentions: [],
       })
     })

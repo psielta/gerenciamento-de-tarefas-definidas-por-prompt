@@ -17,6 +17,7 @@ const workflow: Workflow = {
   currentActor: 'ClaudeCode',
   startedAtUtc: '2026-06-01T12:00:00Z',
   enteredCurrentPhaseAtUtc: '2026-06-01T12:00:00Z',
+  currentPhaseIteration: 1,
   updatedAtUtc: '2026-06-01T12:00:00Z',
   rowVersion: '0',
   phases: [

@@ -15,6 +15,9 @@ public sealed class CreatePromptValidator : AbstractValidator<CreatePromptComman
         RuleFor(command => command.TargetAgent).IsInEnum();
         RuleFor(command => command.Kind).IsInEnum();
         RuleFor(command => command.Status).IsInEnum();
+        RuleFor(command => command.SourceTemplateKey)
+            .IsInEnum()
+            .When(command => command.SourceTemplateKey.HasValue);
         RuleForEach(command => command.Mentions).ChildRules(mention =>
         {
             mention.RuleFor(item => item.Id).NotEmpty().MaximumLength(1024);

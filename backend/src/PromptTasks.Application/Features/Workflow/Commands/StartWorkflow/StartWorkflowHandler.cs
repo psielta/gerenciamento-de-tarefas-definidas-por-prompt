@@ -49,7 +49,8 @@ public sealed class StartWorkflowHandler(
                 Name = templatePhase.Name,
                 DefaultActor = templatePhase.DefaultActor,
                 OrderIndex = orderIndex++,
-                Color = templatePhase.Color
+                Color = templatePhase.Color,
+                Role = templatePhase.Role
             });
         }
 

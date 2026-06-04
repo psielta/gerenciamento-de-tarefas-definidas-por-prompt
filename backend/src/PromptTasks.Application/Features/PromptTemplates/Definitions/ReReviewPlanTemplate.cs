@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,8 @@ public sealed class ReReviewPlanTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para revalidar um plano apos Claude corrigir pontos apontados anteriormente.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.Planning;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.PlanReview;
+    public bool IsReReview => true;
     public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(

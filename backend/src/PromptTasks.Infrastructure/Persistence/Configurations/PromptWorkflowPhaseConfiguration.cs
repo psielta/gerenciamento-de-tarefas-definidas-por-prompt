@@ -15,6 +15,7 @@ public sealed class PromptWorkflowPhaseConfiguration : IEntityTypeConfiguration<
         builder.Property(phase => phase.DefaultActor).HasConversion<int>().IsRequired();
         builder.Property(phase => phase.OrderIndex).IsRequired();
         builder.Property(phase => phase.Color).HasMaxLength(32).IsRequired();
+        builder.Property(phase => phase.Role).HasConversion<int?>();
 
         builder.HasIndex(phase => new { phase.PromptWorkflowId, phase.OrderIndex });
     }

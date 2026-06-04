@@ -4,6 +4,8 @@ using PromptTasks.Application.Common.Behaviors;
 using PromptTasks.Application.Common.Exceptions;
 using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Application.Common.Models;
+using PromptTasks.Application.Features.PromptTemplates;
+using PromptTasks.Application.Features.PromptTemplates.Definitions;
 using PromptTasks.Application.Features.Prompts.Commands.CreatePrompt;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.Users;
@@ -34,7 +36,8 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkflowNotifier(),
             new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
-            new FakeDateTimeProvider());
+            new FakeDateTimeProvider(),
+            CreateCatalog());
 
         var command = new CreatePromptCommand(
             context.WorkingDirectoryItems[0].Id,
@@ -44,6 +47,7 @@ public sealed class CreatePromptHandlerTests
             TargetAgent.Codex,
             PromptKind.General,
             PromptStatus.Draft,
+            null,
             new[] { new FileMentionDto("src/main.go", "src/main.go") });
 
         var result = await handler.Handle(command, CancellationToken.None);
@@ -60,7 +64,7 @@ public sealed class CreatePromptHandlerTests
     public async Task ValidationBehavior_aggregates_validation_failures()
     {
         var behavior = new ValidationBehavior<CreatePromptCommand, PromptDto>(new[] { new CreatePromptValidator() });
-        var invalid = new CreatePromptCommand(Guid.Empty, null, "", "", (TargetAgent)999, PromptKind.General, PromptStatus.Draft, null);
+        var invalid = new CreatePromptCommand(Guid.Empty, null, "", "", (TargetAgent)999, PromptKind.General, PromptStatus.Draft, null, null);
 
         var act = () => behavior.Handle(
             invalid,
@@ -111,7 +115,8 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkflowNotifier(),
             new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
-            new FakeDateTimeProvider());
+            new FakeDateTimeProvider(),
+            CreateCatalog());
 
         var result = await handler.Handle(
             new CreatePromptCommand(
@@ -122,6 +127,7 @@ public sealed class CreatePromptHandlerTests
                 TargetAgent.Codex,
                 PromptKind.Planning,
                 PromptStatus.Draft,
+                null,
                 Array.Empty<FileMentionDto>()),
             CancellationToken.None);
 
@@ -151,7 +157,8 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkflowNotifier(),
             sequenceProvider,
             new FakeCurrentUser(),
-            new FakeDateTimeProvider());
+            new FakeDateTimeProvider(),
+            CreateCatalog());
 
         var result = await handler.Handle(
             new CreatePromptCommand(
@@ -162,6 +169,7 @@ public sealed class CreatePromptHandlerTests
                 TargetAgent.Codex,
                 PromptKind.General,
                 PromptStatus.Draft,
+                null,
                 Array.Empty<FileMentionDto>()),
             CancellationToken.None);
 
@@ -191,7 +199,8 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkflowNotifier(),
             sequenceProvider,
             new FakeCurrentUser(),
-            new FakeDateTimeProvider());
+            new FakeDateTimeProvider(),
+            CreateCatalog());
 
         var result = await handler.Handle(
             new CreatePromptCommand(
@@ -202,6 +211,7 @@ public sealed class CreatePromptHandlerTests
                 TargetAgent.Codex,
                 PromptKind.General,
                 PromptStatus.Draft,
+                null,
                 Array.Empty<FileMentionDto>()),
             CancellationToken.None);
 
@@ -244,7 +254,8 @@ public sealed class CreatePromptHandlerTests
             new FakeWorkflowNotifier(),
             new FakeDailyTaskSequenceProvider(),
             new FakeCurrentUser(),
-            new FakeDateTimeProvider());
+            new FakeDateTimeProvider(),
+            CreateCatalog());
 
         var act = () => handler.Handle(
             new CreatePromptCommand(
@@ -255,11 +266,111 @@ public sealed class CreatePromptHandlerTests
                 TargetAgent.Codex,
                 PromptKind.Planning,
                 PromptStatus.Draft,
+                null,
                 Array.Empty<FileMentionDto>()),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
+
+    [Fact]
+    public async Task Handle_advances_parent_workflow_from_source_template_key()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = new WorkingDirectory
+        {
+            Id = Guid.CreateVersion7(),
+            Name = "repo",
+            AbsolutePath = "C:/repo",
+            OwnerId = User.SystemUserId
+        };
+        context.WorkingDirectoryItems.Add(directory);
+        var notifier = new FakeWorkflowNotifier();
+        var handler = new CreatePromptHandler(
+            context,
+            new FakeWorkspaceFileService(),
+            new FakePromptNotifier(),
+            notifier,
+            new FakeDailyTaskSequenceProvider(),
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider(),
+            CreateCatalog());
+
+        var parent = await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                null,
+                "Parent task",
+                "Create a plan",
+                TargetAgent.ClaudeCode,
+                PromptKind.Planning,
+                PromptStatus.Draft,
+                null,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+        var parentWorkflow = context.PromptWorkflowItems.Single(workflow => workflow.PromptId == parent.Id);
+        parentWorkflow.CurrentPhaseName.Should().Be("Engenharia de prompt");
+        parentWorkflow.CurrentPhaseIteration.Should().Be(1);
+
+        await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                parent.Id,
+                "Review plan",
+                "Review",
+                TargetAgent.Codex,
+                PromptKind.Planning,
+                PromptStatus.Draft,
+                PromptTemplateKey.ReviewPlanWithParentPrompt,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        parentWorkflow.CurrentPhaseName.Should().Be("Revisão do plano");
+        parentWorkflow.CurrentActor.Should().Be(WorkflowActor.Codex);
+        parentWorkflow.CurrentPhaseIteration.Should().Be(1);
+        context.PromptWorkflowEventItems.Should().Contain(@event =>
+            @event.PromptWorkflowId == parentWorkflow.Id &&
+            @event.Type == WorkflowEventType.PhaseChanged &&
+            @event.Note == "Gerado via \"Revisar plano com prompt pai\"");
+
+        await handler.Handle(
+            new CreatePromptCommand(
+                directory.Id,
+                parent.Id,
+                "Re-review plan",
+                "Re-review",
+                TargetAgent.Codex,
+                PromptKind.Planning,
+                PromptStatus.Draft,
+                PromptTemplateKey.ReReviewPlan,
+                Array.Empty<FileMentionDto>()),
+            CancellationToken.None);
+
+        parentWorkflow.CurrentPhaseName.Should().Be("Revisão do plano");
+        parentWorkflow.CurrentPhaseIteration.Should().Be(2);
+        context.PromptWorkflowEventItems.Should().Contain(@event =>
+            @event.PromptWorkflowId == parentWorkflow.Id &&
+            @event.Type == WorkflowEventType.PhaseChanged &&
+            @event.Note == "Re-review #2 - Gerado via \"Re-review do plano\"");
+        notifier.Changes.Should().Contain(summary =>
+            summary.PromptId == parent.Id &&
+            summary.CurrentPhaseName == "Revisão do plano" &&
+            summary.CurrentPhaseIteration == 2);
+    }
+
+    private static PromptTemplateCatalog CreateCatalog() =>
+        new(new IPromptTemplateDefinition[]
+        {
+            new ReviewPlanTemplate(),
+            new ImplementPlanTemplate(),
+            new ReviewPlanWithParentPromptTemplate(),
+            new ReReviewPlanTemplate(),
+            new ImplementPlanInWorktreeTemplate(),
+            new ReviewPullRequestTemplate(),
+            new ReReviewPullRequestTemplate(),
+            new RebaseCurrentBranchTemplate(),
+            new MergePullRequestTemplate()
+        });
 
     private sealed class FakeApplicationDbContext : IApplicationDbContext
     {
@@ -428,8 +539,13 @@ public sealed class CreatePromptHandlerTests
 
     private sealed class FakeWorkflowNotifier : IWorkflowNotifier
     {
-        public Task TaskWorkflowChangedAsync(TaskSummaryDto summary, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public List<TaskSummaryDto> Changes { get; } = new();
+
+        public Task TaskWorkflowChangedAsync(TaskSummaryDto summary, CancellationToken cancellationToken)
+        {
+            Changes.Add(summary);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeCurrentUser : ICurrentUser

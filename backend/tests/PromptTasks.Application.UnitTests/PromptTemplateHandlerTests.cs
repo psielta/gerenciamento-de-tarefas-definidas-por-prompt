@@ -10,6 +10,7 @@ using PromptTasks.Application.Features.PromptTemplates.Definitions;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.Users;
 using PromptTasks.Domain.WorkingDirectories;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.UnitTests;
 
@@ -31,8 +32,8 @@ public sealed class PromptTemplateHandlerTests
                 PromptTemplateKey.ImplementPlanInWorktree,
                 PromptTemplateKey.ReviewPullRequest,
                 PromptTemplateKey.ReReviewPullRequest,
-                PromptTemplateKey.MergePullRequest,
-                PromptTemplateKey.RebaseCurrentBranch);
+                PromptTemplateKey.RebaseCurrentBranch,
+                PromptTemplateKey.MergePullRequest);
         catalog.Get(PromptTemplateKey.ReviewPlan).Should().BeOfType<ReviewPlanTemplate>();
         catalog.Get(PromptTemplateKey.ImplementPlan).Should().BeOfType<ImplementPlanTemplate>();
         catalog.Get(PromptTemplateKey.ReviewPlanWithParentPrompt).Should().BeOfType<ReviewPlanWithParentPromptTemplate>();
@@ -42,6 +43,27 @@ public sealed class PromptTemplateHandlerTests
         catalog.Get(PromptTemplateKey.ReReviewPullRequest).Should().BeOfType<ReReviewPullRequestTemplate>();
         catalog.Get(PromptTemplateKey.MergePullRequest).Should().BeOfType<MergePullRequestTemplate>();
         catalog.Get(PromptTemplateKey.RebaseCurrentBranch).Should().BeOfType<RebaseCurrentBranchTemplate>();
+    }
+
+    [Theory]
+    [InlineData(PromptTemplateKey.ReviewPlan, WorkflowPhaseRole.PlanReview, false)]
+    [InlineData(PromptTemplateKey.ReviewPlanWithParentPrompt, WorkflowPhaseRole.PlanReview, false)]
+    [InlineData(PromptTemplateKey.ReReviewPlan, WorkflowPhaseRole.PlanReview, true)]
+    [InlineData(PromptTemplateKey.ImplementPlan, WorkflowPhaseRole.Implementation, false)]
+    [InlineData(PromptTemplateKey.ImplementPlanInWorktree, WorkflowPhaseRole.Implementation, false)]
+    [InlineData(PromptTemplateKey.ReviewPullRequest, WorkflowPhaseRole.CodeReview, false)]
+    [InlineData(PromptTemplateKey.ReReviewPullRequest, WorkflowPhaseRole.CodeReview, true)]
+    [InlineData(PromptTemplateKey.RebaseCurrentBranch, WorkflowPhaseRole.Rebase, false)]
+    [InlineData(PromptTemplateKey.MergePullRequest, WorkflowPhaseRole.Merge, false)]
+    public void Templates_expose_workflow_phase_metadata(
+        PromptTemplateKey key,
+        WorkflowPhaseRole targetRole,
+        bool isReReview)
+    {
+        var template = CreateCatalog().Get(key);
+
+        template.TargetPhaseRole.Should().Be(targetRole);
+        template.IsReReview.Should().Be(isReReview);
     }
 
     [Fact]

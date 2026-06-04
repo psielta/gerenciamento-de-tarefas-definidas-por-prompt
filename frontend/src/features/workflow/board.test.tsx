@@ -24,6 +24,7 @@ function makeTask(partial: Partial<TaskSummary>): TaskSummary {
     currentPhaseColor: '#2563eb',
     currentActor: 'ClaudeCode',
     enteredCurrentPhaseAtUtc: '2026-06-01T12:00:00Z',
+    currentPhaseIteration: 1,
     updatedAtUtc: '2026-06-01T12:00:00Z',
     hasChildPrompts: false,
     hasLinkedPlan: false,

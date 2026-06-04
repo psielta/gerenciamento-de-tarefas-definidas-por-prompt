@@ -152,6 +152,9 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd 
         ) : (
           <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">Fluxo não iniciado</span>
         )}
+        {task.currentPhaseIteration > 1 ? (
+          <Badge variant="blue">re-review #{task.currentPhaseIteration}</Badge>
+        ) : null}
         {task.currentActor ? <ActorBadge actor={task.currentActor} highlight /> : null}
       </div>
 

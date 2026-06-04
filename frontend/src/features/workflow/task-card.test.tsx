@@ -26,7 +26,7 @@ vi.mock('@tanstack/react-router', () => ({
   },
 }))
 
-function makeTask(taskNumber: string | null): TaskSummary {
+function makeTask(taskNumber: string | null, currentPhaseIteration = 1): TaskSummary {
   return {
     promptId: 'prompt-1',
     workingDirectoryId: 'workspace-1',
@@ -40,6 +40,7 @@ function makeTask(taskNumber: string | null): TaskSummary {
     currentPhaseColor: '#2563eb',
     currentActor: 'ClaudeCode',
     enteredCurrentPhaseAtUtc: '2026-06-01T12:00:00Z',
+    currentPhaseIteration,
     updatedAtUtc: '2026-06-01T12:00:00Z',
     hasChildPrompts: false,
     hasLinkedPlan: false,
@@ -52,12 +53,12 @@ function makeTask(taskNumber: string | null): TaskSummary {
   }
 }
 
-function renderCard(taskNumber: string | null) {
+function renderCard(taskNumber: string | null, currentPhaseIteration = 1) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
   render(
     <QueryClientProvider client={client}>
-      <TaskCard task={makeTask(taskNumber)} />
+      <TaskCard task={makeTask(taskNumber, currentPhaseIteration)} />
     </QueryClientProvider>,
   )
 }
@@ -80,5 +81,15 @@ describe('TaskCard', () => {
 
     expect(screen.queryByText('BP001010626')).not.toBeInTheDocument()
     expect(screen.getByRole('link')).toHaveAttribute('href', '/workspaces/workspace-1/prompts/prompt-1')
+  })
+
+  it('shows a re-review badge only after the first phase iteration', () => {
+    renderCard(null, 2)
+
+    expect(screen.getByText('re-review #2')).toBeInTheDocument()
+
+    cleanup()
+    renderCard(null, 1)
+    expect(screen.queryByText('re-review #1')).not.toBeInTheDocument()
   })
 })

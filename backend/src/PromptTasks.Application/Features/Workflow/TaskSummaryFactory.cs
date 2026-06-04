@@ -42,6 +42,7 @@ internal static class TaskSummaryFactory
             workflow?.CurrentPhaseColor,
             workflow?.CurrentActor,
             workflow?.EnteredCurrentPhaseAtUtc,
+            workflow?.CurrentPhaseIteration ?? 1,
             updatedAtUtc,
             hasChildPrompts,
             hasLinkedPlan,

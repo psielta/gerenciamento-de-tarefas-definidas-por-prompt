@@ -16,14 +16,14 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Persistencia de prompts, versoes, status e referencias de arquivos no PostgreSQL.
 - Relacionamento entre prompts pai e prompts filhos, usado para gerar prompts auxiliares a partir de um plano vinculado.
 - Board global de tarefas, agrupado por fase, com modos Kanban e vertical, drag-and-drop, arquivamento direto pelo cartao e filtros por diretorio, status do prompt e status do workflow.
-- Workflow manual por prompt raiz, com fases configuraveis, responsavel atual, avancar/voltar fase, trocar responsavel, concluir e reabrir.
-- Timeline append-only por prompt, registrando inicio do fluxo, mudancas de fase, troca de responsavel, notas, conclusao, reabertura e edicao de fases.
+- Workflow por prompt raiz, com fases configuraveis, responsavel atual, transicoes manuais, transicoes automaticas por prompts filhos, concluir e reabrir.
+- Timeline append-only por prompt, registrando inicio do fluxo, mudancas de fase, troca de responsavel, notas, conclusao, reabertura, edicao de fases e transicoes originadas por templates.
 - Selos de fase e responsavel nas listas de prompts do workspace.
 - Vinculo de arquivos Markdown externos, como planos gerados pelo Claude Code.
 - Monitoramento de alteracoes desses planos, versionamento automatico e atualizacao em tempo real via SignalR.
 - Pausa, retomada, atualizacao manual e remocao de planos vinculados.
 - Renderizacao de Markdown versionado no navegador com historico navegavel.
-- Templates de prompts para fluxo de revisao e implementacao de planos.
+- Templates de prompts para fluxo de revisao, implementacao, rebase e merge de planos, com atualizacao automatica da fase da tarefa pai quando aplicavel.
 - Indicadores no header para limites atuais de Claude Code e Codex, lendo as fontes locais dos agentes e sincronizando atualizacoes via SignalR.
 - **Assistente IA com Gemini:** refinamento de prompts, chat de suporte e configuracao de modelo diretamente na tela de criacao e edicao.
 - Contexto de workspace opcional na IA, lendo automaticamente `README.md`, `CLAUDE.md` e `AGENT.md` da raiz do diretorio de trabalho.
@@ -98,17 +98,19 @@ O backend segue um fluxo orientado a casos de uso. Controllers chamam MediatR, h
 3. O backend valida se os arquivos existem dentro do diretorio permitido.
 4. Um prompt de planejamento pode ser vinculado a um Markdown externo gerado pelo Claude Code.
 5. O sistema renderiza esse plano, monitora alteracoes, cria versoes e envia eventos em tempo real.
-6. A partir do plano vinculado, o usuario gera prompts filhos, como revisao do plano ou implementacao.
+6. A partir do plano vinculado, o usuario gera prompts filhos, como revisao do plano, implementacao, revisao de PR, rebase ou merge.
 7. Prompts filhos permanecem associados ao prompt pai e nao poluem a listagem principal do workspace.
 8. Cada prompt raiz representa uma tarefa no board global.
-9. Ao criar uma tarefa nao arquivada, o workflow inicia automaticamente em `Planejamento` com responsavel `ClaudeCode`.
-10. No board, o usuario pode arrastar tarefas entre fases, concluir, reabrir ou arquivar a tarefa.
-11. Na aba `Timeline`, o usuario acompanha o historico, adiciona notas, muda fase/responsavel, conclui ou reabre o fluxo.
-12. O template de fases pode ser editado em `Configuracoes`; tarefas existentes mantem um snapshot proprio das fases.
-13. Na tela de criacao ou edicao de um prompt, o botao **Refinar** envia o conteudo atual para o Gemini e exibe uma previa do prompt otimizado antes de aplicar.
-14. O botao **IA** abre um drawer lateral com chat de suporte especializado em engenharia de prompts; o usuario pode incluir o conteudo do prompt atual como contexto da conversa.
-15. O painel de **Configuracao** do drawer permite escolher o modelo Gemini, ajustar a temperatura e definir o nivel de raciocinio. As configuracoes sao salvas por usuario.
-16. Em cada workspace, o usuario pode ativar o **Contexto de IA** para injetar `README.md`, `CLAUDE.md` e `AGENT.md` nas instrucoes de sistema do Gemini durante o refinamento e o chat.
+9. Ao criar uma tarefa nao arquivada, o workflow inicia automaticamente em `Engenharia de prompt` com responsavel humano.
+10. Ao criar prompts filhos a partir de templates mapeados, a tarefa pai avanca automaticamente para a fase correspondente, como revisao do plano, implementacao, revisao de codigo, rebase ou merge.
+11. Re-reviews de plano ou PR incrementam a iteracao da fase, exibem selo no cartao e ficam registrados na timeline.
+12. No board, o usuario pode arrastar tarefas entre fases, concluir, reabrir ou arquivar a tarefa.
+13. Na aba `Timeline`, o usuario acompanha o historico, adiciona notas, muda fase/responsavel, conclui ou reabre o fluxo.
+14. O template de fases pode ser editado em `Configuracoes`; tarefas existentes mantem um snapshot proprio das fases.
+15. Na tela de criacao ou edicao de um prompt, o botao **Refinar** envia o conteudo atual para o Gemini e exibe uma previa do prompt otimizado antes de aplicar.
+16. O botao **IA** abre um drawer lateral com chat de suporte especializado em engenharia de prompts; o usuario pode incluir o conteudo do prompt atual como contexto da conversa.
+17. O painel de **Configuracao** do drawer permite escolher o modelo Gemini, ajustar a temperatura e definir o nivel de raciocinio. As configuracoes sao salvas por usuario.
+18. Em cada workspace, o usuario pode ativar o **Contexto de IA** para injetar `README.md`, `CLAUDE.md` e `AGENT.md` nas instrucoes de sistema do Gemini durante o refinamento e o chat.
 
 ## Como Executar
 
@@ -212,7 +214,7 @@ npm audit --audit-level=moderate
 - Prompts gerados a partir de planos vinculados sao prompts filhos.
 - Clicar em um prompt filho abre um drawer dentro da rota do prompt pai; nao redireciona para a tela de edicao do filho.
 - Cada prompt pai e tratado como uma tarefa; prompts filhos sao artefatos auxiliares e nao entram no board como tarefas independentes.
-- O workflow e manual: avancar fase, voltar fase, trocar responsavel, adicionar nota, concluir e reabrir dependem de acao explicita do usuario.
+- O workflow combina acoes manuais com transicoes automaticas geradas por templates de prompt filho; concluir e reabrir continuam dependendo de acao explicita do usuario.
 - Concluir o workflow nao arquiva o prompt; `Prompt.Status` e `PromptWorkflow.Status` sao estados separados.
 - Arquivos mencionados em prompts precisam existir dentro do diretorio de trabalho.
 - Planos vinculados podem ser monitorados em background, pausados e retomados.

@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,7 @@ public sealed class ReviewPullRequestTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt de revisao para a PR que implementou o plano.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.CodeReview;
     public PromptTemplateInputDefinition? Input => new(
         "pullRequest",
         "PR",

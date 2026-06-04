@@ -71,10 +71,14 @@ public sealed class PromptWorkflowApiTests(PromptTasksApiFactory factory) : ICla
         var workflow = await client.GetFromJsonAsync<WorkflowDto>($"/api/prompts/{prompt.Id}/workflow", JsonOptions);
         workflow.Should().NotBeNull();
         workflow!.Status.Should().Be(PromptWorkflowStatus.Active);
-        workflow.CurrentPhaseName.Should().Be("Planejamento");
-        workflow.CurrentActor.Should().Be(WorkflowActor.ClaudeCode);
+        workflow.CurrentPhaseName.Should().Be("Engenharia de prompt");
+        workflow.CurrentActor.Should().Be(WorkflowActor.Human);
+        workflow.CurrentPhaseIteration.Should().Be(1);
         workflow.Phases.Should().Contain(phase => phase.Name == "Revisão do plano");
 
+        workflow = await PostWorkflowAsync(client, prompt.Id, "advance", new { rowVersion = workflow.RowVersion, note = (string?)null });
+        workflow.CurrentPhaseName.Should().Be("Planejamento");
+        workflow.CurrentActor.Should().Be(WorkflowActor.ClaudeCode);
         workflow = await PostWorkflowAsync(client, prompt.Id, "advance", new { rowVersion = workflow.RowVersion, note = (string?)null });
         workflow.CurrentPhaseName.Should().Be("Revisão do plano");
         workflow = await PostWorkflowAsync(client, prompt.Id, "advance", new { rowVersion = workflow.RowVersion, note = (string?)null });

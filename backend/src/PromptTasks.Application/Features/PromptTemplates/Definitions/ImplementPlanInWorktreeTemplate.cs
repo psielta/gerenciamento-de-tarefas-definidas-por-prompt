@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,7 @@ public sealed class ImplementPlanInWorktreeTemplate : IPromptTemplateDefinition
     public string Description => "Gera um prompt para implementar o plano em uma worktree separada e abrir PR.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.General;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.Implementation;
     public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(

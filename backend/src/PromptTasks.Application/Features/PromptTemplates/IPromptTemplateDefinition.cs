@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates;
 
@@ -9,6 +10,8 @@ public interface IPromptTemplateDefinition
     string Description { get; }
     TargetAgent DefaultTargetAgent { get; }
     PromptKind DefaultKind { get; }
+    WorkflowPhaseRole? TargetPhaseRole => null;
+    bool IsReReview => false;
     PromptTemplateInputDefinition? Input { get; }
     IReadOnlyList<PromptTemplateInputDefinition> Inputs =>
         Input is null

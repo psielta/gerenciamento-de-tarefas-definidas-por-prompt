@@ -12,6 +12,7 @@ public sealed record WorkflowDto(
     WorkflowActor? CurrentActor,
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? EnteredCurrentPhaseAtUtc,
+    int CurrentPhaseIteration,
     DateTimeOffset UpdatedAtUtc,
     string RowVersion,
     IReadOnlyList<WorkflowPhaseDto> Phases,

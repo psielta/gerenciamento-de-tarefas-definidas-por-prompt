@@ -11,6 +11,7 @@ public sealed class PromptWorkflow : Entity
     public string? CurrentPhaseName { get; set; }
     public string? CurrentPhaseColor { get; set; }
     public WorkflowActor? CurrentActor { get; set; }
+    public int CurrentPhaseIteration { get; set; } = 1;
     public DateTimeOffset StartedAtUtc { get; set; }
     public DateTimeOffset? EnteredCurrentPhaseAtUtc { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }

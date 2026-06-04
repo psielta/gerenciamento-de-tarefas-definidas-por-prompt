@@ -76,12 +76,18 @@ internal static class WorkflowMutationHelpers
         return @event;
     }
 
-    public static void EnterPhase(PromptWorkflow workflow, PromptWorkflowPhase phase, WorkflowActor? actor, DateTimeOffset now)
+    public static void EnterPhase(
+        PromptWorkflow workflow,
+        PromptWorkflowPhase phase,
+        WorkflowActor? actor,
+        DateTimeOffset now,
+        int iteration = 1)
     {
         workflow.CurrentPhaseId = phase.Id;
         workflow.CurrentPhaseName = phase.Name;
         workflow.CurrentPhaseColor = phase.Color;
         workflow.CurrentActor = actor ?? phase.DefaultActor;
+        workflow.CurrentPhaseIteration = iteration;
         workflow.EnteredCurrentPhaseAtUtc = now;
         workflow.UpdatedAtUtc = now;
     }

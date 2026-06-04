@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Prompts;
+using PromptTasks.Domain.Workflows;
 
 namespace PromptTasks.Application.Features.PromptTemplates.Definitions;
 
@@ -9,6 +10,7 @@ public sealed class ReviewPlanWithParentPromptTemplate : IPromptTemplateDefiniti
     public string Description => "Gera um prompt de revisao incluindo o prompt original que originou o plano.";
     public TargetAgent DefaultTargetAgent => TargetAgent.Codex;
     public PromptKind DefaultKind => PromptKind.Planning;
+    public WorkflowPhaseRole? TargetPhaseRole => WorkflowPhaseRole.PlanReview;
     public PromptTemplateInputDefinition? Input => null;
 
     public Task<RenderedPromptTemplate> RenderAsync(
