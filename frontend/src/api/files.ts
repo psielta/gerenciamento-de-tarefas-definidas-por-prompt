@@ -36,7 +36,7 @@ export async function browseDirectory(workingDirectoryId: string, relativePath =
     relativePath,
   })
 
-  const data = await api.get('files/browse', { searchParams }).json<unknown>()
+  const data = await api.get('files/tree', { searchParams }).json<unknown>()
   return fileTreeNodeListSchema.parse(data)
 }
 
