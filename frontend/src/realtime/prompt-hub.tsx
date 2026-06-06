@@ -13,9 +13,8 @@ import {
   linkedDocumentSchema,
   promptSchema,
   taskSummarySchema,
-  workspaceFileChangedSchema,
 } from '@/api/schemas'
-import { fileKey, parentDirectoryPath } from '@/features/files/file-key'
+import { fileSubscriptionKey, parentDirectoryPath } from '@/features/files/file-key'
 
 type FileSubscription = {
   workingDirectoryId: string
@@ -154,18 +153,20 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
       queryClient.setQueryData(queryKeys.agentUsage.current(), usage)
     })
 
-    connection.on('WorkspaceFileChanged', (payload: unknown) => {
-      const change = workspaceFileChangedSchema.parse(payload)
-      const expectedKey = fileKey(change.workingDirectoryId, change.relativePath)
-      if (change.key !== expectedKey) {
+    connection.on('WorkspaceFileChanged', (workingDirectoryId: string, changedKey: string) => {
+      const subscription = joinedFilesRef.current.get(`${workingDirectoryId}::${changedKey}`)
+      if (!subscription) {
         return
       }
 
       queryClient.invalidateQueries({
-        queryKey: queryKeys.files.content(change.workingDirectoryId, change.relativePath),
+        queryKey: queryKeys.files.content(subscription.workingDirectoryId, subscription.relativePath),
       })
       queryClient.invalidateQueries({
-        queryKey: queryKeys.files.tree(change.workingDirectoryId, parentDirectoryPath(change.relativePath)),
+        queryKey: queryKeys.files.tree(
+          subscription.workingDirectoryId,
+          parentDirectoryPath(subscription.relativePath),
+        ),
       })
     })
 
@@ -229,7 +230,7 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
 
   const joinFile = useCallback(
     (workingDirectoryId: string, relativePath: string) => {
-      const key = fileKey(workingDirectoryId, relativePath)
+      const key = fileSubscriptionKey(workingDirectoryId, relativePath)
       const existing = joinedFilesRef.current.get(key)
       if (existing) {
         existing.count += 1
@@ -244,7 +245,7 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
 
   const leaveFile = useCallback(
     (workingDirectoryId: string, relativePath: string) => {
-      const key = fileKey(workingDirectoryId, relativePath)
+      const key = fileSubscriptionKey(workingDirectoryId, relativePath)
       const existing = joinedFilesRef.current.get(key)
       if (!existing) {
         return
