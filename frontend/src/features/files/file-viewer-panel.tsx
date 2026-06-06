@@ -6,7 +6,10 @@ import { extensionToLanguage } from './extension-to-language'
 import { useFileContent } from './use-file-queries'
 import { useFileSubscription } from './use-file-subscription'
 
-const MonacoEditor = lazy(() => import('@monaco-editor/react'))
+const MonacoEditor = lazy(async () => {
+  await import('./monaco-setup')
+  return import('@monaco-editor/react')
+})
 
 type FileViewerPanelProps = {
   workingDirectoryId: string
@@ -22,13 +25,9 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
   useFileSubscription(workingDirectoryId, relativePath)
 
   const language = useMemo(() => {
-    if (contentQuery.data?.language) {
-      return contentQuery.data.language
-    }
-
     const extension = relativePath.includes('.') ? relativePath.slice(relativePath.lastIndexOf('.')) : null
     return extensionToLanguage(extension)
-  }, [contentQuery.data?.language, relativePath])
+  }, [relativePath])
 
   const fileName = relativePath.split('/').pop() || relativePath
 
@@ -77,7 +76,7 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
           </div>
         ) : null}
 
-        {contentQuery.data && !contentQuery.data.isBinary && contentQuery.data.content !== null ? (
+        {contentQuery.data && !contentQuery.data.isBinary ? (
           <Suspense
             fallback={
               <div className="flex h-full min-h-48 items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -105,7 +104,7 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
           </Suspense>
         ) : null}
 
-        {contentQuery.data?.isTruncated ? (
+        {contentQuery.data?.truncated ? (
           <div className="border-t border-border bg-warning-soft px-3 py-2 text-xs text-warning-foreground">
             Arquivo truncado para visualizacao. Abra no editor local para ver o conteudo completo.
           </div>

@@ -1,6 +1,9 @@
-export function fileKey(workingDirectoryId: string, relativePath: string) {
-  const normalized = relativePath.trim().replace(/\\/g, '/').toLocaleLowerCase()
-  return `${workingDirectoryId}:${normalized}`
+export function createFileKey(relativePath: string) {
+  return relativePath.trim().replace(/^@/, '').replace(/\\/g, '/').toLowerCase()
+}
+
+export function fileSubscriptionKey(workingDirectoryId: string, relativePath: string) {
+  return `${workingDirectoryId}::${createFileKey(relativePath)}`
 }
 
 export function parentDirectoryPath(relativePath: string) {
