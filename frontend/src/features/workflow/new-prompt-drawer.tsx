@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import type { WorkingDirectory } from '@/api/schemas'
+import { useFileViewer } from '@/features/files/use-file-viewer'
+import { WorkspaceFileTree } from '@/features/files/workspace-file-tree'
 import { PromptForm } from '@/features/prompts/prompt-form'
 
 type NewPromptDrawerProps = {
@@ -19,6 +21,7 @@ export function NewPromptDrawer({
   onClose,
   onCreated,
 }: NewPromptDrawerProps) {
+  const { openFile } = useFileViewer()
   const [workingDirectoryId, setWorkingDirectoryId] = useState(
     defaultWorkingDirectoryId ?? (workspaces.length === 1 ? workspaces[0].id : '')
   )
@@ -76,11 +79,19 @@ export function NewPromptDrawer({
             </label>
 
             {workingDirectoryId ? (
-              <PromptForm
-                key={workingDirectoryId}
-                workingDirectoryId={workingDirectoryId}
-                onCreated={handleCreated}
-              />
+              <div className="grid min-h-0 gap-4 lg:grid-cols-[14rem_minmax(0,1fr)]">
+                <WorkspaceFileTree
+                  workingDirectoryId={workingDirectoryId}
+                  onOpenFile={(relativePath) => openFile(workingDirectoryId, relativePath)}
+                  className="min-h-[24rem]"
+                />
+                <PromptForm
+                  key={workingDirectoryId}
+                  workingDirectoryId={workingDirectoryId}
+                  onCreated={handleCreated}
+                  showWorkspaceFileTree={false}
+                />
+              </div>
             ) : (
               <div className="rounded-md border border-dashed border-input bg-card p-3 text-sm text-muted-foreground">
                 Selecione um diretório de trabalho para começar a escrever o prompt.

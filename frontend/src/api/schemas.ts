@@ -46,6 +46,29 @@ export const fileSearchResultSchema = z.object({
   score: z.number(),
 })
 
+export const fileTreeNodeSchema = z.object({
+  name: z.string(),
+  relativePath: z.string(),
+  isDirectory: z.boolean(),
+  extension: z.string().nullable(),
+})
+
+export const fileContentSchema = z.object({
+  relativePath: z.string(),
+  content: z.string().nullable(),
+  language: z.string().nullable(),
+  sizeBytes: z.number(),
+  isBinary: z.boolean(),
+  isTruncated: z.boolean(),
+  lastModifiedUtc: z.string(),
+})
+
+export const workspaceFileChangedSchema = z.object({
+  workingDirectoryId: z.string().uuid(),
+  relativePath: z.string(),
+  key: z.string(),
+})
+
 export const fileReferenceValidationSchema = z.object({
   rawPath: z.string(),
   relativePath: z.string(),
@@ -154,6 +177,9 @@ export type FileMention = z.infer<typeof fileMentionSchema>
 export type WorkingDirectory = z.infer<typeof workingDirectorySchema>
 export type ValidatePathResponse = z.infer<typeof validatePathResponseSchema>
 export type FileSearchResult = z.infer<typeof fileSearchResultSchema>
+export type FileTreeNode = z.infer<typeof fileTreeNodeSchema>
+export type FileContent = z.infer<typeof fileContentSchema>
+export type WorkspaceFileChanged = z.infer<typeof workspaceFileChangedSchema>
 export type FileReferenceValidation = z.infer<typeof fileReferenceValidationSchema>
 export type Prompt = z.infer<typeof promptSchema>
 export type PromptVersion = z.infer<typeof promptVersionSchema>
@@ -166,6 +192,7 @@ export type GeneratedPromptDraft = z.infer<typeof promptDraftSchema>
 
 export const workingDirectoryListSchema = z.array(workingDirectorySchema)
 export const fileSearchResultListSchema = z.array(fileSearchResultSchema)
+export const fileTreeNodeListSchema = z.array(fileTreeNodeSchema)
 export const fileReferenceValidationListSchema = z.array(fileReferenceValidationSchema)
 export const promptListSchema = z.array(promptSchema)
 export const promptVersionListSchema = z.array(promptVersionSchema)

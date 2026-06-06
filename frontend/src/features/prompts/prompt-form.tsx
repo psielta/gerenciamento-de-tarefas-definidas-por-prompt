@@ -20,6 +20,8 @@ import {
   promptFormSchema,
   type PromptFormValues,
 } from './constants'
+import { useFileViewer } from '@/features/files/use-file-viewer'
+import { WorkspaceFileTree } from '@/features/files/workspace-file-tree'
 import { PromptEditor } from './prompt-editor'
 import { RefineDialog } from './ai/refine-dialog'
 import { AiAssistantPanel } from './ai/ai-assistant-panel'
@@ -30,11 +32,19 @@ type PromptFormProps = {
   promptId?: string
   onDeleted?: () => void
   onCreated?: (prompt: Prompt) => void
+  showWorkspaceFileTree?: boolean
 }
 
-export function PromptForm({ workingDirectoryId, promptId, onDeleted, onCreated }: PromptFormProps) {
+export function PromptForm({
+  workingDirectoryId,
+  promptId,
+  onDeleted,
+  onCreated,
+  showWorkspaceFileTree = true,
+}: PromptFormProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { openFile } = useFileViewer()
   const [editorMentions, setEditorMentions] = useState<{
     promptId?: string
     mentions: FileMention[]
@@ -215,7 +225,17 @@ export function PromptForm({ workingDirectoryId, promptId, onDeleted, onCreated 
           onClose={() => setShowTranslateDialog(false)}
         />
       ) : null}
-    <form onSubmit={onSubmit} className="grid gap-5">
+    <form
+      onSubmit={onSubmit}
+      className={showWorkspaceFileTree ? 'grid gap-5 xl:grid-cols-[14rem_minmax(0,1fr)]' : 'grid gap-5'}
+    >
+      {showWorkspaceFileTree ? (
+        <WorkspaceFileTree
+          workingDirectoryId={workingDirectoryId}
+          onOpenFile={(relativePath) => openFile(workingDirectoryId, relativePath)}
+          className="hidden min-h-[28rem] xl:grid"
+        />
+      ) : null}
       <div className="grid gap-4 rounded-lg border border-border bg-card p-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_10rem_10rem]">
           <FormField label="Titulo" htmlFor="prompt-title" error={form.formState.errors.title?.message}>
@@ -260,6 +280,7 @@ export function PromptForm({ workingDirectoryId, promptId, onDeleted, onCreated 
         <PromptEditor
           workingDirectoryId={workingDirectoryId}
           value={content}
+          onOpenMention={(relativePath) => openFile(workingDirectoryId, relativePath)}
           onChange={(value, nextMentions) => {
             form.setValue('content', value, { shouldDirty: true, shouldValidate: true })
             setEditorMentions({ promptId, mentions: nextMentions })

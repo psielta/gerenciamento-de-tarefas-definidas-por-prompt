@@ -8,7 +8,20 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hubUrl } from '@/env'
 import { queryKeys } from '@/api/query-keys'
-import { agentUsageSchema, linkedDocumentSchema, promptSchema, taskSummarySchema } from '@/api/schemas'
+import {
+  agentUsageSchema,
+  linkedDocumentSchema,
+  promptSchema,
+  taskSummarySchema,
+  workspaceFileChangedSchema,
+} from '@/api/schemas'
+import { fileKey, parentDirectoryPath } from '@/features/files/file-key'
+
+type FileSubscription = {
+  workingDirectoryId: string
+  relativePath: string
+  count: number
+}
 
 type PromptHubContextValue = {
   connected: boolean
@@ -16,6 +29,8 @@ type PromptHubContextValue = {
   leaveWorkingDirectory: (id: string) => void
   joinTasks: () => void
   leaveTasks: () => void
+  joinFile: (workingDirectoryId: string, relativePath: string) => void
+  leaveFile: (workingDirectoryId: string, relativePath: string) => void
 }
 
 const PromptHubContext = createContext<PromptHubContextValue | null>(null)
@@ -24,6 +39,7 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const connectionRef = useRef<HubConnection | null>(null)
   const joinedWorkingDirectoriesRef = useRef(new Set<string>())
+  const joinedFilesRef = useRef(new Map<string, FileSubscription>())
   const tasksJoinedRef = useRef(false)
   const [connected, setConnected] = useState(false)
 
@@ -48,12 +64,29 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const invokeJoinFile = useCallback((workingDirectoryId: string, relativePath: string) => {
+    const connection = connectionRef.current
+    if (connection?.state === HubConnectionState.Connected) {
+      void connection.invoke('JoinFile', workingDirectoryId, relativePath)
+    }
+  }, [])
+
+  const invokeLeaveFile = useCallback((workingDirectoryId: string, relativePath: string) => {
+    const connection = connectionRef.current
+    if (connection?.state === HubConnectionState.Connected) {
+      void connection.invoke('LeaveFile', workingDirectoryId, relativePath)
+    }
+  }, [])
+
   const rejoinAll = useCallback(() => {
     joinedWorkingDirectoriesRef.current.forEach(invokeJoin)
     if (tasksJoinedRef.current) {
       invokeJoinTasks()
     }
-  }, [invokeJoin, invokeJoinTasks])
+    joinedFilesRef.current.forEach(({ workingDirectoryId, relativePath }) => {
+      invokeJoinFile(workingDirectoryId, relativePath)
+    })
+  }, [invokeJoin, invokeJoinFile, invokeJoinTasks])
 
   useEffect(() => {
     const connection = new HubConnectionBuilder()
@@ -121,6 +154,21 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
       queryClient.setQueryData(queryKeys.agentUsage.current(), usage)
     })
 
+    connection.on('WorkspaceFileChanged', (payload: unknown) => {
+      const change = workspaceFileChangedSchema.parse(payload)
+      const expectedKey = fileKey(change.workingDirectoryId, change.relativePath)
+      if (change.key !== expectedKey) {
+        return
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.files.content(change.workingDirectoryId, change.relativePath),
+      })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.files.tree(change.workingDirectoryId, parentDirectoryPath(change.relativePath)),
+      })
+    })
+
     connection.onreconnecting(() => setConnected(false))
     connection.onreconnected(() => {
       setConnected(true)
@@ -179,6 +227,40 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const joinFile = useCallback(
+    (workingDirectoryId: string, relativePath: string) => {
+      const key = fileKey(workingDirectoryId, relativePath)
+      const existing = joinedFilesRef.current.get(key)
+      if (existing) {
+        existing.count += 1
+        return
+      }
+
+      joinedFilesRef.current.set(key, { workingDirectoryId, relativePath, count: 1 })
+      invokeJoinFile(workingDirectoryId, relativePath)
+    },
+    [invokeJoinFile],
+  )
+
+  const leaveFile = useCallback(
+    (workingDirectoryId: string, relativePath: string) => {
+      const key = fileKey(workingDirectoryId, relativePath)
+      const existing = joinedFilesRef.current.get(key)
+      if (!existing) {
+        return
+      }
+
+      if (existing.count <= 1) {
+        joinedFilesRef.current.delete(key)
+        invokeLeaveFile(workingDirectoryId, relativePath)
+        return
+      }
+
+      existing.count -= 1
+    },
+    [invokeLeaveFile],
+  )
+
   const value = useMemo(
     () => ({
       connected,
@@ -186,8 +268,10 @@ export function PromptHubProvider({ children }: { children: React.ReactNode }) {
       leaveWorkingDirectory,
       joinTasks,
       leaveTasks,
+      joinFile,
+      leaveFile,
     }),
-    [connected, joinWorkingDirectory, leaveWorkingDirectory, joinTasks, leaveTasks],
+    [connected, joinFile, joinWorkingDirectory, leaveFile, leaveWorkingDirectory, joinTasks, leaveTasks],
   )
 
   return <PromptHubContext.Provider value={value}>{children}</PromptHubContext.Provider>

@@ -6,6 +6,8 @@ import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/components/theme/theme-provider'
 import { ThemedToaster } from '@/components/theme/themed-toaster'
 import { queryClient } from '@/query-client'
+import { FileViewerProvider } from '@/features/files/file-viewer-provider'
+import '@/features/files/monaco-setup'
 import { PromptHubProvider } from '@/realtime/prompt-hub'
 import { router } from '@/router'
 import '@fontsource-variable/geist'
@@ -17,8 +19,10 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <PromptHubProvider>
-          <RouterProvider router={router} />
-          <ThemedToaster />
+          <FileViewerProvider>
+            <RouterProvider router={router} />
+            <ThemedToaster />
+          </FileViewerProvider>
         </PromptHubProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

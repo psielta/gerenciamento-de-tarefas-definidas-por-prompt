@@ -271,6 +271,22 @@ body {
   font-family: var(--font-mono);
   font-weight: 600;
   padding: 0.1rem 0.32rem;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    text-decoration-color 120ms ease;
+}
+
+.file-mention:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.modifier-active .file-mention {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--ring);
+  text-underline-offset: 0.14rem;
 }
 
 .mention-suggestion {

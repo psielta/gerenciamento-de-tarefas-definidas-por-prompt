@@ -7,6 +7,7 @@ import { queryKeys } from '@/api/query-keys'
 import type { Prompt, PromptStatus } from '@/api/schemas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useFileViewer } from '@/features/files/use-file-viewer'
 import { PromptEditor } from './prompt-editor'
 import {
   AGENT_LABELS,
@@ -91,6 +92,8 @@ function StatusBadge({ status }: { status: PromptStatus }) {
 }
 
 function ChildPromptDrawer({ prompt, onClose }: { prompt: Prompt; onClose: () => void }) {
+  const { openFile } = useFileViewer()
+
   const copyContent = async () => {
     await navigator.clipboard.writeText(prompt.content)
     toast.success('Prompt filho copiado.')
@@ -146,6 +149,7 @@ function ChildPromptDrawer({ prompt, onClose }: { prompt: Prompt; onClose: () =>
           <PromptEditor
             workingDirectoryId={prompt.workingDirectoryId}
             value={prompt.content}
+            onOpenMention={(relativePath) => openFile(prompt.workingDirectoryId, relativePath)}
             onChange={() => undefined}
             editable={false}
             className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"

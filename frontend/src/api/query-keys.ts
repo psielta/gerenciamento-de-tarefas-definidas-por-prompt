@@ -25,6 +25,10 @@ export const queryKeys = {
   files: {
     search: (workingDirectoryId: string, query: string, limit: number) =>
       ['files', 'search', workingDirectoryId, query, limit] as const,
+    tree: (workingDirectoryId: string, relativePath: string) =>
+      ['files', 'tree', workingDirectoryId, relativePath] as const,
+    content: (workingDirectoryId: string, relativePath: string) =>
+      ['files', 'content', workingDirectoryId, relativePath] as const,
   },
   prompts: {
     all: ['prompts'] as const,

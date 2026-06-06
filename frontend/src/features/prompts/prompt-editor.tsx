@@ -5,18 +5,20 @@ import type { JSONContent } from '@tiptap/react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Check, Copy, Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
 import { searchFiles, validateFileReferences } from '@/api/files'
 import type { FileMention, FileSearchResult } from '@/api/schemas'
 import { cn } from '@/lib/utils'
+import { WORKSPACE_FILE_MIME } from '@/features/files/workspace-file-tree'
 import { createFileMentionSuggestion, FileMention as FileMentionExtension } from './file-mention'
 
 type PromptEditorProps = {
   workingDirectoryId: string
   value: string
   onChange: (value: string, mentions: FileMention[]) => void
+  onOpenMention?: (relativePath: string) => void
   className?: string
   contentClassName?: string
   editorClassName?: string
@@ -52,12 +54,49 @@ export function PromptEditor({
   workingDirectoryId,
   value,
   onChange,
+  onOpenMention,
   className,
   contentClassName,
   editorClassName,
   editable = true,
 }: PromptEditorProps) {
   const [isValidatingMentions, setIsValidatingMentions] = useState(false)
+  const onOpenMentionRef = useRef(onOpenMention)
+
+  useEffect(() => {
+    onOpenMentionRef.current = onOpenMention
+  }, [onOpenMention])
+
+  useEffect(() => {
+    const setModifierActive = (active: boolean) => {
+      document.body.classList.toggle('modifier-active', active)
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Control' || event.key === 'Meta') {
+        setModifierActive(true)
+      }
+    }
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Control' || event.key === 'Meta') {
+        setModifierActive(false)
+      }
+    }
+
+    const onBlur = () => setModifierActive(false)
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+
+    return () => {
+      setModifierActive(false)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [])
 
   const searchMentions = useCallback(
     (query: string) => {
@@ -168,6 +207,84 @@ export function PromptEditor({
     editorProps: {
       attributes: {
         class: cn('tiptap px-4 py-3 text-left text-sm leading-6 text-foreground', editorClassName),
+      },
+      handleClickOn: (_view, _pos, node, _nodePos, event) => {
+        if (node.type.name !== 'mention') {
+          return false
+        }
+
+        if (!(event.metaKey || event.ctrlKey)) {
+          return false
+        }
+
+        const relativePath = typeof node.attrs.id === 'string' ? node.attrs.id : ''
+        if (!relativePath) {
+          return false
+        }
+
+        onOpenMentionRef.current?.(relativePath)
+        return true
+      },
+      handleDOMEvents: {
+        dragover: (_view, event) => {
+          if (!editable) {
+            return false
+          }
+
+          if (!event.dataTransfer?.types.includes(WORKSPACE_FILE_MIME)) {
+            return false
+          }
+
+          event.preventDefault()
+          return true
+        },
+      },
+      handleDrop: (view, event) => {
+        if (!editable) {
+          return false
+        }
+
+        const rawPayload = event.dataTransfer?.getData(WORKSPACE_FILE_MIME)
+        if (!rawPayload) {
+          return false
+        }
+
+        let relativePath: string
+        try {
+          const payload = JSON.parse(rawPayload) as { relativePath?: string }
+          relativePath = payload.relativePath?.trim().replace(/\\/g, '/') ?? ''
+        } catch {
+          return false
+        }
+
+        if (!relativePath) {
+          return false
+        }
+
+        event.preventDefault()
+
+        const mentionType = view.state.schema.nodes.mention
+        if (!mentionType) {
+          return false
+        }
+
+        const coordinates = { left: event.clientX, top: event.clientY }
+        const position = view.posAtCoords(coordinates)
+        if (!position) {
+          return false
+        }
+
+        const transaction = view.state.tr.insert(
+          position.pos,
+          mentionType.create({
+            id: relativePath,
+            label: relativePath,
+            mentionSuggestionChar: '@',
+          }),
+        )
+
+        view.dispatch(transaction)
+        return true
       },
       handlePaste: (view) => {
         if (!editable) {

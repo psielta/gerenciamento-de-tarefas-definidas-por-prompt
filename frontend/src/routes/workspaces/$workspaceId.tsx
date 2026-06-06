@@ -1,6 +1,6 @@
-import { Link, Outlet, createFileRoute, useLocation } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, useLocation, useRouterState } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, Radio, Sparkles } from 'lucide-react'
+import { ArrowLeft, Files, Loader2, List, Radio, Sparkles } from 'lucide-react'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { getWorkingDirectory, updateWorkingDirectory } from '@/api/working-directories'
@@ -43,6 +43,9 @@ function WorkspaceLayout() {
     queryFn: () => getWorkingDirectory(workspaceId),
   })
   const workspaceName = formatWorkspaceName(workspaceQuery.data?.name)
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isFilesRoute = pathname.includes(`/workspaces/${workspaceId}/files`)
+  const isPromptsRoute = !isFilesRoute
 
   const aiContextMutation = useMutation({
     mutationFn: (enableAiContext: boolean) => {
@@ -132,6 +135,20 @@ function WorkspaceLayout() {
           />
         </div>
       ) : null}
+      <nav className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
+        <Link to="/workspaces/$workspaceId" params={{ workspaceId }}>
+          <Button type="button" variant={isPromptsRoute ? 'default' : 'ghost'} size="sm">
+            <List className="h-4 w-4" />
+            Prompts
+          </Button>
+        </Link>
+        <Link to="/workspaces/$workspaceId/files" params={{ workspaceId }}>
+          <Button type="button" variant={isFilesRoute ? 'default' : 'ghost'} size="sm">
+            <Files className="h-4 w-4" />
+            Arquivos
+          </Button>
+        </Link>
+      </nav>
       <Outlet />
     </div>
   )
