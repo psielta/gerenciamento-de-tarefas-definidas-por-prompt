@@ -237,11 +237,11 @@ export function PromptForm({
         />
       ) : null}
       <div className="grid gap-4 rounded-lg border border-border bg-card p-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_10rem_10rem]">
-          <FormField label="Titulo" htmlFor="prompt-title" error={form.formState.errors.title?.message}>
-            <Input id="prompt-title" placeholder="Planejar refatoracao do modulo X" {...form.register('title')} />
-          </FormField>
+        <FormField label="Titulo" htmlFor="prompt-title" error={form.formState.errors.title?.message}>
+          <Input id="prompt-title" placeholder="Planejar refatoracao do modulo X" {...form.register('title')} />
+        </FormField>
 
+        <div className="grid gap-4 sm:grid-cols-3">
           <FormField label="Agente" htmlFor="prompt-agent">
             <Select id="prompt-agent" {...form.register('targetAgent')}>
               {AGENT_OPTIONS.map((option) => (
