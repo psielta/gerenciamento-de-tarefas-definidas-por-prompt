@@ -1,6 +1,7 @@
 using System.Globalization;
 using PromptTasks.Application.Common.Models;
 using PromptTasks.Domain.FutureTasks;
+using PromptTasks.Domain.Notebooks;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.WorkingDirectories;
 
@@ -8,6 +9,29 @@ namespace PromptTasks.Application.Common.Mappings;
 
 public static class DtoMapper
 {
+    public static NotebookDto ToDto(this Notebook notebook, int noteCount, string? workingDirectoryName) =>
+        new(
+            notebook.Id,
+            notebook.Title,
+            notebook.Description,
+            notebook.WorkingDirectoryId,
+            workingDirectoryName,
+            notebook.IsArchived,
+            noteCount,
+            notebook.CreatedAtUtc,
+            notebook.UpdatedAtUtc);
+
+    public static NoteDto ToDto(this Note note) =>
+        new(
+            note.Id,
+            note.NotebookId,
+            note.Title,
+            note.ContentMarkdown,
+            note.IsPinned,
+            note.IsArchived,
+            note.CreatedAtUtc,
+            note.UpdatedAtUtc);
+
     public static WorkingDirectoryDto ToDto(this WorkingDirectory workingDirectory) =>
         new(
             workingDirectory.Id,
