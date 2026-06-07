@@ -38,6 +38,12 @@ function RootLayout() {
             >
               Diretórios
             </Link>
+            <Link
+              to="/files"
+              className="rounded-md px-2.5 py-1.5 text-foreground transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:font-semibold"
+            >
+              Arquivos
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />

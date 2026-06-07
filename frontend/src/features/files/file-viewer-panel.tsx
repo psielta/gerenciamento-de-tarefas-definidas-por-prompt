@@ -1,6 +1,7 @@
 import { AlertTriangle, FileCode2, Loader2 } from 'lucide-react'
 import { lazy, Suspense, useMemo } from 'react'
 import { getErrorMessage } from '@/api/client'
+import { useTheme } from '@/components/theme/theme-provider'
 import { cn } from '@/lib/utils'
 import { extensionToLanguage } from './extension-to-language'
 import { useFileContent } from './use-file-queries'
@@ -23,6 +24,7 @@ const byteFormatter = new Intl.NumberFormat('pt-BR')
 export function FileViewerPanel({ workingDirectoryId, relativePath, className, inline = false }: FileViewerPanelProps) {
   const contentQuery = useFileContent(workingDirectoryId, relativePath)
   useFileSubscription(workingDirectoryId, relativePath)
+  const { resolvedTheme } = useTheme()
 
   const language = useMemo(() => {
     const extension = relativePath.includes('.') ? relativePath.slice(relativePath.lastIndexOf('.')) : null
@@ -88,7 +90,7 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
             <MonacoEditor
               value={contentQuery.data.content}
               language={language}
-              theme="vs-dark"
+              theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs'}
               options={{
                 readOnly: true,
                 minimap: { enabled: false },
