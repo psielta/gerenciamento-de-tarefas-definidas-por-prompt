@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, useLocation, useRouterState } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Files, Loader2, List, Pencil, Radio, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Check, Files, ListTodo, Loader2, List, Pencil, Radio, Sparkles, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { getWorkingDirectory, updateWorkingDirectory } from '@/api/working-directories'
@@ -46,7 +46,8 @@ function WorkspaceLayout() {
   const workspaceName = formatWorkspaceName(workspaceQuery.data?.name)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isFilesRoute = pathname.includes(`/workspaces/${workspaceId}/files`)
-  const isPromptsRoute = !isFilesRoute
+  const isFutureTasksRoute = pathname.includes(`/workspaces/${workspaceId}/future-tasks`)
+  const isPromptsRoute = !isFilesRoute && !isFutureTasksRoute
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
 
@@ -251,6 +252,12 @@ function WorkspaceLayout() {
           <Button type="button" variant={isPromptsRoute ? 'default' : 'ghost'} size="sm">
             <List className="h-4 w-4" />
             Prompts
+          </Button>
+        </Link>
+        <Link to="/workspaces/$workspaceId/future-tasks" params={{ workspaceId }}>
+          <Button type="button" variant={isFutureTasksRoute ? 'default' : 'ghost'} size="sm">
+            <ListTodo className="h-4 w-4" />
+            Tarefas futuras
           </Button>
         </Link>
         <Link to="/workspaces/$workspaceId/files" params={{ workspaceId }}>
