@@ -29,6 +29,16 @@ const PROMPT_STATUS_OPTIONS: Array<{ value: PromptStatus | ''; label: string }> 
 
 type BoardViewMode = 'kanban' | 'vertical'
 
+const VIEW_MODE_STORAGE_KEY = 'prompt-tasks:board-view-mode'
+
+function readStoredViewMode(): BoardViewMode {
+  if (typeof window === 'undefined') {
+    return 'kanban'
+  }
+
+  return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'vertical' ? 'vertical' : 'kanban'
+}
+
 export function Board() {
   const queryClient = useQueryClient()
   const hub = usePromptHub()
@@ -38,7 +48,7 @@ export function Board() {
   const [workflowStatus, setWorkflowStatus] = useState<PromptWorkflowStatus | ''>('')
   const [promptStatus, setPromptStatus] = useState<PromptStatus | ''>('')
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [viewMode, setViewMode] = useState<BoardViewMode>('kanban')
+  const [viewMode, setViewMode] = useState<BoardViewMode>(readStoredViewMode)
   const [draggedPromptId, setDraggedPromptId] = useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
   const boardScrollerRef = useRef<HTMLDivElement>(null)
@@ -51,6 +61,10 @@ export function Board() {
     joinTasks()
     return () => leaveTasks()
   }, [joinTasks, leaveTasks])
+
+  useEffect(() => {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
+  }, [viewMode])
 
   const filters = useMemo(
     () => ({
