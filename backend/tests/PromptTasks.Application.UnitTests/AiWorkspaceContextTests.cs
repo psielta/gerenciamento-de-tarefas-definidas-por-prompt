@@ -504,6 +504,8 @@ public sealed class AiWorkspaceContextTests
         public IQueryable<AiChatSession> AiChatSessions => AiChatSessionItems.AsQueryable();
         public IQueryable<AiChatMessage> AiChatMessages => AiChatMessageItems.AsQueryable();
         public IQueryable<AiUserSettings> AiUserSettings => AiUserSettingsItems.AsQueryable();
+        public IQueryable<PromptTasks.Domain.Notebooks.Notebook> Notebooks => Enumerable.Empty<PromptTasks.Domain.Notebooks.Notebook>().AsQueryable();
+        public IQueryable<PromptTasks.Domain.Notebooks.Note> Notes => Enumerable.Empty<PromptTasks.Domain.Notebooks.Note>().AsQueryable();
 
         public int SaveChangesCount { get; private set; }
 

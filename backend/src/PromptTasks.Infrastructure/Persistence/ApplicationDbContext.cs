@@ -3,6 +3,7 @@ using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Domain.Ai;
 using PromptTasks.Domain.Common;
 using PromptTasks.Domain.FutureTasks;
+using PromptTasks.Domain.Notebooks;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.Users;
 using PromptTasks.Domain.WorkingDirectories;
@@ -34,6 +35,8 @@ public sealed class ApplicationDbContext(
     public DbSet<AiChatSession> AiChatSessions => Set<AiChatSession>();
     public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
     public DbSet<AiUserSettings> AiUserSettings => Set<AiUserSettings>();
+    public DbSet<Notebook> Notebooks => Set<Notebook>();
+    public DbSet<Note> Notes => Set<Note>();
 
     IQueryable<User> IApplicationDbContext.Users => Users;
     IQueryable<WorkingDirectory> IApplicationDbContext.WorkingDirectories => WorkingDirectories;
@@ -52,6 +55,8 @@ public sealed class ApplicationDbContext(
     IQueryable<AiChatSession> IApplicationDbContext.AiChatSessions => AiChatSessions;
     IQueryable<AiChatMessage> IApplicationDbContext.AiChatMessages => AiChatMessages;
     IQueryable<AiUserSettings> IApplicationDbContext.AiUserSettings => AiUserSettings;
+    IQueryable<Notebook> IApplicationDbContext.Notebooks => Notebooks;
+    IQueryable<Note> IApplicationDbContext.Notes => Notes;
 
     void IApplicationDbContext.Add<TEntity>(TEntity entity) => Set<TEntity>().Add(entity);
     void IApplicationDbContext.AddRange<TEntity>(IEnumerable<TEntity> entities) => Set<TEntity>().AddRange(entities);
