@@ -13,9 +13,18 @@ import { GeneratePromptDrawer } from './generate-prompt-drawer'
 type GeneratePromptMenuProps = {
   linkedDocumentId: string
   disabled?: boolean
+  pullRequestReference?: string | null
+  // Quando fornecido (ex.: card do quadro), o menu apenas borbulha o template escolhido
+  // e nao renderiza o drawer inline — quem renderiza e o componente pai (drawer elevado).
+  onSelectTemplate?: (template: PromptTemplate) => void
 }
 
-export function GeneratePromptMenu({ linkedDocumentId, disabled }: GeneratePromptMenuProps) {
+export function GeneratePromptMenu({
+  linkedDocumentId,
+  disabled,
+  pullRequestReference,
+  onSelectTemplate,
+}: GeneratePromptMenuProps) {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -119,7 +128,11 @@ export function GeneratePromptMenu({ linkedDocumentId, disabled }: GeneratePromp
                   className="grid min-w-0 gap-0.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-muted focus:bg-muted focus:outline-none"
                   onClick={() => {
                     setOpen(false)
-                    setSelectedTemplate(template)
+                    if (onSelectTemplate) {
+                      onSelectTemplate(template)
+                    } else {
+                      setSelectedTemplate(template)
+                    }
                   }}
                 >
                   <span className="truncate font-medium">{template.displayName}</span>
@@ -135,6 +148,7 @@ export function GeneratePromptMenu({ linkedDocumentId, disabled }: GeneratePromp
         <GeneratePromptDrawer
           linkedDocumentId={linkedDocumentId}
           template={selectedTemplate}
+          initialPullRequestReference={pullRequestReference}
           onClose={() => setSelectedTemplate(null)}
         />
       ) : null}

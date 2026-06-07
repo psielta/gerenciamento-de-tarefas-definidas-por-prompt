@@ -4,6 +4,7 @@ using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Application.Common.Models;
 using PromptTasks.Application.Features.LinkedDocuments.Commands.LinkDocument;
 using PromptTasks.Application.Features.LinkedDocuments.Commands.ResumeLinkedDocument;
+using PromptTasks.Application.Features.LinkedDocuments.Commands.SetLinkedDocumentPullRequest;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Domain.Users;
 using PromptTasks.Domain.WorkingDirectories;
@@ -119,6 +120,95 @@ public sealed class LinkedDocumentHandlerTests
         await act.Should().ThrowAsync<ConflictException>();
         document.Status.Should().Be(LinkedDocumentStatus.Paused);
         watcher.Started.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LinkDocument_rejects_second_plan_for_prompt()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context);
+        context.LinkedDocumentItems.Add(new LinkedDocument
+        {
+            Id = Guid.CreateVersion7(),
+            PromptId = prompt.Id,
+            AbsolutePath = "C:/plans/existing.md",
+            AbsolutePathKey = "c:/plans/existing.md"
+        });
+        var handler = new LinkDocumentHandler(
+            context,
+            new FakeLinkedDocumentFileService(),
+            new FakeWatchCoordinator(),
+            new FakeLinkedDocumentNotifier(),
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider());
+
+        // Caminho diferente, mas o prompt ja tem 1 plano -> regra de no maximo 1.
+        var act = () => handler.Handle(new LinkDocumentCommand(prompt.Id, "C:/plans/another.md"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        context.LinkedDocumentItems.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task SetLinkedDocumentPullRequest_persists_trimmed_value_and_notifies()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context);
+        var document = new LinkedDocument
+        {
+            Id = Guid.CreateVersion7(),
+            PromptId = prompt.Id,
+            WorkingDirectoryId = prompt.WorkingDirectoryId,
+            AbsolutePath = "C:/plans/plan.md",
+            AbsolutePathKey = "c:/plans/plan.md",
+            Status = LinkedDocumentStatus.Tracking
+        };
+        context.LinkedDocumentItems.Add(document);
+        var notifier = new FakeLinkedDocumentNotifier();
+        var handler = new SetLinkedDocumentPullRequestHandler(
+            context,
+            notifier,
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider());
+
+        var result = await handler.Handle(
+            new SetLinkedDocumentPullRequestCommand(document.Id, "  #123  "),
+            CancellationToken.None);
+
+        result.PullRequestReference.Should().Be("#123");
+        document.PullRequestReference.Should().Be("#123");
+        notifier.Updated.Should().NotBeNull();
+        notifier.Updated!.PullRequestReference.Should().Be("#123");
+    }
+
+    [Fact]
+    public async Task SetLinkedDocumentPullRequest_clears_value_when_blank()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context);
+        var document = new LinkedDocument
+        {
+            Id = Guid.CreateVersion7(),
+            PromptId = prompt.Id,
+            WorkingDirectoryId = prompt.WorkingDirectoryId,
+            AbsolutePath = "C:/plans/plan.md",
+            AbsolutePathKey = "c:/plans/plan.md",
+            Status = LinkedDocumentStatus.Tracking,
+            PullRequestReference = "#9"
+        };
+        context.LinkedDocumentItems.Add(document);
+        var handler = new SetLinkedDocumentPullRequestHandler(
+            context,
+            new FakeLinkedDocumentNotifier(),
+            new FakeCurrentUser(),
+            new FakeDateTimeProvider());
+
+        var result = await handler.Handle(
+            new SetLinkedDocumentPullRequestCommand(document.Id, "   "),
+            CancellationToken.None);
+
+        result.PullRequestReference.Should().BeNull();
+        document.PullRequestReference.Should().BeNull();
     }
 
     private static Prompt SeedPrompt(FakeApplicationDbContext context, PromptStatus status = PromptStatus.Draft)
@@ -257,11 +347,16 @@ public sealed class LinkedDocumentHandlerTests
             return Task.CompletedTask;
         }
 
+        public LinkedDocumentDto? Updated { get; private set; }
+
         public Task LinkedDocumentUpdatedAsync(
             LinkedDocumentDto document,
             Guid workingDirectoryId,
-            CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            Updated = document;
+            return Task.CompletedTask;
+        }
 
         public Task LinkedDocumentRemovedAsync(
             Guid linkedDocumentId,

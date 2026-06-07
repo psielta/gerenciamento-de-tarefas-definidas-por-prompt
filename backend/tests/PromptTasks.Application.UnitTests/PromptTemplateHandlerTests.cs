@@ -334,26 +334,37 @@ public sealed class PromptTemplateHandlerTests
     [InlineData(PromptTemplateKey.ReviewPullRequest)]
     [InlineData(PromptTemplateKey.ReReviewPullRequest)]
     [InlineData(PromptTemplateKey.MergePullRequest)]
-    public async Task GeneratePromptDraft_validation_requires_pr_for_pull_request_templates(PromptTemplateKey templateKey)
+    public async Task GeneratePromptDraft_requires_pull_request_when_plan_has_none(PromptTemplateKey templateKey)
     {
-        var behavior = new ValidationBehavior<GeneratePromptDraftCommand, GeneratedPromptDraftDto>(
-            new[] { new GeneratePromptDraftValidator() });
-        var invalid = new GeneratePromptDraftCommand(Guid.CreateVersion7(), templateKey);
+        // A obrigatoriedade da PR foi movida para o handler (apos o fallback do plano vinculado).
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context, User.SystemUserId);
+        var document = SeedLinkedDocument(context, prompt, "C:/plans/pr-plan.md", "pr-plan.md");
+        var handler = new GeneratePromptDraftHandler(context, CreateCatalog(), new FakeCurrentUser());
 
-        var act = () => behavior.Handle(
-            invalid,
-            _ => Task.FromResult(new GeneratedPromptDraftDto(
-                invalid.TemplateKey,
-                invalid.LinkedDocumentId,
-                Guid.CreateVersion7(),
-                Guid.CreateVersion7(),
-                "",
-                "",
-                TargetAgent.Codex,
-                PromptKind.General)),
+        var act = () => handler.Handle(
+            new GeneratePromptDraftCommand(document.Id, templateKey),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public async Task GeneratePromptDraft_pulls_pull_request_from_linked_document()
+    {
+        var context = new FakeApplicationDbContext();
+        var prompt = SeedPrompt(context, User.SystemUserId);
+        var document = SeedLinkedDocument(context, prompt, "C:/plans/pr-plan.md", "pr-plan.md");
+        document.PullRequestReference = "123";
+        var handler = new GeneratePromptDraftHandler(context, CreateCatalog(), new FakeCurrentUser());
+
+        // Sem PR na request: deve puxar a PR salva no plano vinculado.
+        var result = await handler.Handle(
+            new GeneratePromptDraftCommand(document.Id, PromptTemplateKey.ReviewPullRequest),
+            CancellationToken.None);
+
+        result.Title.Should().Be("Review PR #123: pr-plan.md");
+        result.Content.Should().Contain("Review the PR #123 that implements the plan `C:/plans/pr-plan.md`.");
     }
 
     [Fact]

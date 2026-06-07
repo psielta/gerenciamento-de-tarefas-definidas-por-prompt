@@ -10,6 +10,7 @@ public sealed record LinkedDocumentDto(
     string DisplayName,
     LinkedDocumentType DocumentType,
     LinkedDocumentStatus Status,
+    string? PullRequestReference,
     int CurrentVersion,
     string? LastContentHash,
     long? SizeBytes,

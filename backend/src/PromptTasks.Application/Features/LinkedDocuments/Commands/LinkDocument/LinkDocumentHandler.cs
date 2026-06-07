@@ -21,6 +21,12 @@ public sealed class LinkDocumentHandler(
         var prompt = LinkedDocumentHelpers.GetPrompt(context, request.PromptId, currentUser.UserId);
         LinkedDocumentHelpers.EnsurePromptAllowsTracking(prompt);
 
+        // Regra: cada prompt pode ter no maximo 1 plano vinculado (garantido tambem por indice unico no banco).
+        if (context.LinkedDocuments.Any(document => document.PromptId == prompt.Id))
+        {
+            throw new ConflictException("Each prompt can have at most one linked plan. Remove the current plan before linking another.");
+        }
+
         var validation = await fileService.ValidateAsync(request.AbsolutePath, cancellationToken);
         if (!validation.IsValid)
         {
@@ -28,11 +34,6 @@ public sealed class LinkDocumentHandler(
         }
 
         var pathKey = validation.PathKey ?? string.Empty;
-        if (context.LinkedDocuments.Any(document => document.PromptId == prompt.Id && document.AbsolutePathKey == pathKey))
-        {
-            throw new ConflictException("This markdown file is already linked to the prompt.");
-        }
-
         var readResult = await fileService.ReadAsync(validation.CanonicalPath ?? request.AbsolutePath, cancellationToken);
         if (!readResult.Success)
         {

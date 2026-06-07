@@ -72,6 +72,16 @@ export async function refreshLinkedDocument(id: string): Promise<LinkedDocument>
   return linkedDocumentSchema.parse(data)
 }
 
+export async function setLinkedDocumentPullRequest(
+  id: string,
+  pullRequest: string | null,
+): Promise<LinkedDocument> {
+  const data = await api
+    .put(`linked-documents/${id}/pull-request`, { json: { pullRequest } })
+    .json<unknown>()
+  return linkedDocumentSchema.parse(data)
+}
+
 export async function removeLinkedDocument(id: string) {
   await api.delete(`linked-documents/${id}`)
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, FileText, Loader2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react'
+import { AlertTriangle, Check, FileText, GitPullRequest, Loader2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -14,12 +14,14 @@ import {
   refreshLinkedDocument,
   removeLinkedDocument,
   resumeLinkedDocument,
+  setLinkedDocumentPullRequest,
 } from '@/api/linked-documents'
 import { getErrorMessage } from '@/api/client'
 import { queryKeys } from '@/api/query-keys'
 import type { LinkedDocument } from '@/api/schemas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { DiffViewerModal } from '@/features/diff/diff-viewer-modal'
 import { useLinkedPlanCompare } from '@/features/diff/use-linked-plan-compare'
 import { GeneratePromptMenu } from './generate-prompt-menu'
@@ -62,6 +64,8 @@ function LinkedDocumentViewerPanel({ documentId, initialDocument, onRemoved }: L
   const [selectedVersion, setSelectedVersion] = useState<number | undefined>()
   const [compareSelection, setCompareSelection] = useState<number[]>([])
   const [isCompareOpen, setIsCompareOpen] = useState(false)
+  const [isEditingPullRequest, setIsEditingPullRequest] = useState(false)
+  const [pullRequestDraft, setPullRequestDraft] = useState('')
 
   const documentQuery = useQuery({
     queryKey: queryKeys.linkedDocuments.detail(documentId),
@@ -128,6 +132,20 @@ function LinkedDocumentViewerPanel({ documentId, initialDocument, onRemoved }: L
     onError: (error) => toast.error(getErrorMessage(error)),
   })
 
+  const setPullRequestMutation = useMutation({
+    mutationFn: (value: string | null) => setLinkedDocumentPullRequest(documentId, value),
+    onSuccess: (updated) => {
+      setIsEditingPullRequest(false)
+      void updateDocumentCache(updated, 'PR atualizada.')
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
+
+  const savePullRequest = () => {
+    const trimmed = pullRequestDraft.trim()
+    setPullRequestMutation.mutate(trimmed ? trimmed : null)
+  }
+
   const removeMutation = useMutation({
     mutationFn: () => removeLinkedDocument(documentId),
     onSuccess: async () => {
@@ -185,10 +203,89 @@ function LinkedDocumentViewerPanel({ documentId, initialDocument, onRemoved }: L
                   ? ` atualizado em ${dateFormatter.format(new Date(document.lastSyncedAtUtc))}`
                   : ''}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <GitPullRequest className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                {isEditingPullRequest ? (
+                  <>
+                    <Input
+                      value={pullRequestDraft}
+                      onChange={(event) => setPullRequestDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          savePullRequest()
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          setIsEditingPullRequest(false)
+                        }
+                      }}
+                      placeholder="#123 ou URL da PR"
+                      maxLength={120}
+                      disabled={setPullRequestMutation.isPending}
+                      className="h-7 w-48 text-xs"
+                      aria-label="Numero da PR do plano vinculado"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={savePullRequest}
+                      disabled={setPullRequestMutation.isPending}
+                    >
+                      {setPullRequestMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      Salvar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setIsEditingPullRequest(false)}
+                      disabled={setPullRequestMutation.isPending}
+                    >
+                      Cancelar
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-muted-foreground">
+                      PR:{' '}
+                      {document.pullRequestReference ? (
+                        <span className="font-medium text-foreground">{document.pullRequestReference}</span>
+                      ) : (
+                        <span className="italic">nao definida</span>
+                      )}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => {
+                        setPullRequestDraft(document.pullRequestReference ?? '')
+                        setIsEditingPullRequest(true)
+                      }}
+                      disabled={isBusy}
+                    >
+                      {document.pullRequestReference ? 'Editar' : 'Definir'}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="flex min-w-0 flex-wrap items-start gap-2 2xl:justify-end">
-              <GeneratePromptMenu linkedDocumentId={document.id} disabled={isBusy} />
+              <GeneratePromptMenu
+                linkedDocumentId={document.id}
+                disabled={isBusy}
+                pullRequestReference={document.pullRequestReference}
+              />
 
               <Button
                 type="button"

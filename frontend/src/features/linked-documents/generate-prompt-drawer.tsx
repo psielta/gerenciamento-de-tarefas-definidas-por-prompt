@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
+import { setLinkedDocumentPullRequest } from '@/api/linked-documents'
 import { createPrompt } from '@/api/prompts'
 import { renderPromptDraft } from '@/api/prompt-templates'
 import { queryKeys } from '@/api/query-keys'
@@ -26,6 +27,7 @@ type GeneratePromptDrawerProps = {
   linkedDocumentId: string
   template: PromptTemplate
   onClose: () => void
+  initialPullRequestReference?: string | null
 }
 
 type CreateGeneratedPromptPayload = {
@@ -37,15 +39,27 @@ export function GeneratePromptDrawer({
   linkedDocumentId,
   template,
   onClose,
+  initialPullRequestReference,
 }: GeneratePromptDrawerProps) {
   const queryClient = useQueryClient()
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [contentOverride, setContentOverride] = useState<string | null>(null)
   const [editorMentions, setEditorMentions] = useState<FileMention[] | null>(null)
   const templateInputs = template.inputs?.length ? template.inputs : template.input ? [template.input] : []
-  const [templateInputValues, setTemplateInputValues] = useState<Record<string, string>>({})
+  const pullRequestInput = templateInputs.find((input) => input.key === 'pullRequest')
+  const requiresPullRequest = Boolean(pullRequestInput?.required)
+  const storedPullRequest = (initialPullRequestReference ?? '').trim()
+  const showPullRequestAlert = requiresPullRequest && !storedPullRequest
+  // Pre-preenche a PR puxada do plano vinculado; auto-confirma o rascunho quando todos os
+  // inputs obrigatorios ja vem satisfeitos (ex.: Revisar PR com PR salva no plano).
+  const initialTemplateInputs: Record<string, string> =
+    pullRequestInput && storedPullRequest ? { pullRequest: storedPullRequest } : {}
+  const allRequiredSatisfiedInitially = templateInputs.every(
+    (input) => !input.required || Boolean((initialTemplateInputs[input.key] ?? '').trim()),
+  )
+  const [templateInputValues, setTemplateInputValues] = useState<Record<string, string>>(initialTemplateInputs)
   const [confirmedTemplateInputs, setConfirmedTemplateInputs] = useState<Record<string, string> | null>(
-    templateInputs.length > 0 ? null : {},
+    templateInputs.length === 0 || allRequiredSatisfiedInitially ? initialTemplateInputs : null,
   )
   const form = useForm<PromptFormValues>({
     resolver: zodResolver(promptFormSchema),
@@ -106,6 +120,27 @@ export function GeneratePromptDrawer({
     queryClient.setQueryData(queryKeys.prompts.detail(prompt.id), prompt)
     await queryClient.invalidateQueries({ queryKey: queryKeys.prompts.all })
     await queryClient.invalidateQueries({ queryKey: queryKeys.prompts.versions(prompt.id) })
+    // O pai pode avancar de etapa ao gerar o filho; atualiza o quadro/timeline na hora.
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.all })
+  }
+
+  const persistPullRequestIfChanged = async () => {
+    if (!requiresPullRequest) {
+      return
+    }
+
+    const enteredPullRequest = (confirmedTemplateInputs?.pullRequest ?? '').trim()
+    if (!enteredPullRequest || enteredPullRequest === storedPullRequest) {
+      return
+    }
+
+    try {
+      const updated = await setLinkedDocumentPullRequest(linkedDocumentId, enteredPullRequest)
+      queryClient.setQueryData(queryKeys.linkedDocuments.detail(linkedDocumentId), updated)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.linkedDocuments.forPrompt(updated.promptId) })
+    } catch {
+      // Falha ao salvar a PR no plano nao deve bloquear a criacao do filho.
+    }
   }
 
   const createMutation = useMutation({
@@ -128,6 +163,7 @@ export function GeneratePromptDrawer({
     },
     onSuccess: async (prompt, payload) => {
       await afterSave(prompt)
+      await persistPullRequestIfChanged()
       if (payload.copyAfterCreate) {
         try {
           await navigator.clipboard.writeText(payload.values.content)
@@ -229,6 +265,14 @@ export function GeneratePromptDrawer({
         <div data-testid="generate-prompt-drawer-body" className="min-h-0 overflow-y-auto p-4">
           {templateInputs.length > 0 ? (
             <div className="mb-4 grid gap-2 rounded-md border border-border bg-background p-3">
+              {showPullRequestAlert ? (
+                <div className="flex items-start gap-2 rounded-md border border-warning-solid/40 bg-warning-soft p-2.5 text-xs text-warning-foreground">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Nenhuma PR definida neste plano vinculado. Informe o numero abaixo — ele sera salvo no plano ao gerar.
+                  </span>
+                </div>
+              ) : null}
               {templateInputs.map((templateInput) => {
                 const inputId = `generated-prompt-template-input-${templateInput.key}`
 

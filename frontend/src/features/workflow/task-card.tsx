@@ -6,10 +6,11 @@ import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
 import { getPrompt, updatePromptStatus } from '@/api/prompts'
 import { queryKeys } from '@/api/query-keys'
-import type { TaskSummary } from '@/api/schemas'
+import type { PromptTemplate, TaskSummary } from '@/api/schemas'
 import { advancePhase, completeWorkflow, getWorkflow, startWorkflow } from '@/api/workflow'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { GeneratePromptMenu } from '@/features/linked-documents/generate-prompt-menu'
 import { ActorBadge, PhaseBadge } from './badges'
 import { formatRelativeTime } from './constants'
 
@@ -20,6 +21,7 @@ type TaskCardProps = {
   onDragStart?: (task: TaskSummary, event: DragEvent<HTMLDivElement>) => void
   onDragEnd?: () => void
   onOpen?: (task: TaskSummary) => void
+  onGenerate?: (task: TaskSummary, template: PromptTemplate) => void
 }
 
 const WORKSPACE_NAME_MAX_LENGTH = 36
@@ -33,7 +35,7 @@ function formatWorkspaceName(name: string) {
   return `${normalizedName.slice(0, WORKSPACE_NAME_MAX_LENGTH - 3).trimEnd()}...`
 }
 
-export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd, onOpen }: TaskCardProps) {
+export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd, onOpen, onGenerate }: TaskCardProps) {
   const queryClient = useQueryClient()
 
   const invalidate = () => {
@@ -158,6 +160,16 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
         ) : null}
         {task.currentActor ? <ActorBadge actor={task.currentActor} highlight /> : null}
       </div>
+
+      {task.linkedDocumentId ? (
+        <div className="flex">
+          <GeneratePromptMenu
+            linkedDocumentId={task.linkedDocumentId}
+            pullRequestReference={task.pullRequestReference}
+            onSelectTemplate={(template) => onGenerate?.(task, template)}
+          />
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 text-xs text-subtle-foreground">

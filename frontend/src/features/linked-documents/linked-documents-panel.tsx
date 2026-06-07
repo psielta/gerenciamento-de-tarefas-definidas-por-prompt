@@ -62,7 +62,13 @@ export function LinkedDocumentsPanel({ promptId }: LinkedDocumentsPanelProps) {
           </div>
         </div>
 
-        <LinkDocumentForm promptId={promptId} onLinked={(document) => setSelectedDocumentId(document.id)} />
+        {documents.length > 0 ? (
+          <p className="rounded-md border border-dashed border-input p-3 text-xs text-muted-foreground">
+            Cada prompt permite um plano vinculado. Remova o atual para vincular outro.
+          </p>
+        ) : (
+          <LinkDocumentForm promptId={promptId} onLinked={(document) => setSelectedDocumentId(document.id)} />
+        )}
 
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">

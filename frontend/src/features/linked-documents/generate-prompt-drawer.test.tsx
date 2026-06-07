@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setLinkedDocumentPullRequest } from '@/api/linked-documents'
 import { createPrompt } from '@/api/prompts'
 import { renderPromptDraft } from '@/api/prompt-templates'
 import type { PromptTemplate } from '@/api/schemas'
@@ -13,6 +14,10 @@ vi.mock('@/api/prompt-templates', () => ({
 
 vi.mock('@/api/prompts', () => ({
   createPrompt: vi.fn(),
+}))
+
+vi.mock('@/api/linked-documents', () => ({
+  setLinkedDocumentPullRequest: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -87,7 +92,7 @@ const reReviewPrTemplate: PromptTemplate = {
 const draftContent =
   'Given the plan "C:\\Users\\psiel\\.claude\\plans\\plan.md", validate the plan, approve it, or point out improvements.'
 
-function renderDrawer(templateOverride = template) {
+function renderDrawer(templateOverride = template, initialPullRequestReference?: string | null) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -100,6 +105,7 @@ function renderDrawer(templateOverride = template) {
       <GeneratePromptDrawer
         linkedDocumentId="019e9f6a-94e7-7a23-965d-c8b05c63ee59"
         template={templateOverride}
+        initialPullRequestReference={initialPullRequestReference}
         onClose={vi.fn()}
       />
     </QueryClientProvider>,
@@ -133,6 +139,23 @@ describe('GeneratePromptDrawer', () => {
       createdAtUtc: '2026-05-31T00:00:00Z',
       updatedAtUtc: '2026-05-31T00:00:00Z',
       mentions: [],
+    })
+    vi.mocked(setLinkedDocumentPullRequest).mockResolvedValue({
+      id: '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+      promptId: '019e9f6a-a269-7991-95d5-4e602dcf773d',
+      workingDirectoryId: null,
+      absolutePath: 'C:/plans/plan.md',
+      displayName: 'plan.md',
+      documentType: 'ClaudeCodePlan',
+      status: 'Tracking',
+      pullRequestReference: '99',
+      currentVersion: 1,
+      lastContentHash: null,
+      sizeBytes: null,
+      lastError: null,
+      lastSyncedAtUtc: null,
+      createdAtUtc: '2026-05-31T00:00:00Z',
+      updatedAtUtc: '2026-05-31T00:00:00Z',
     })
   })
 
@@ -219,6 +242,45 @@ describe('GeneratePromptDrawer', () => {
           },
         },
       )
+    })
+  })
+
+  it('pre-fills the PR from the linked plan and renders the draft automatically', async () => {
+    renderDrawer(prTemplate, '#7')
+
+    await waitFor(() => {
+      expect(renderPromptDraft).toHaveBeenCalledWith(
+        '019e9f6a-94e7-7a23-965d-c8b05c63ee59',
+        'ReviewPullRequest',
+        { pullRequest: '#7', inputs: { pullRequest: '#7' } },
+      )
+    })
+    expect(screen.getByLabelText('PR')).toHaveValue('#7')
+  })
+
+  it('alerts to define the PR when the linked plan has none', () => {
+    renderDrawer(prTemplate)
+
+    expect(screen.getByText(/Nenhuma PR definida neste plano/i)).toBeInTheDocument()
+  })
+
+  it('does not alert when the linked plan already has a PR', () => {
+    renderDrawer(prTemplate, '#7')
+
+    expect(screen.queryByText(/Nenhuma PR definida neste plano/i)).not.toBeInTheDocument()
+  })
+
+  it('saves a newly typed PR back to the linked plan when generating', async () => {
+    const user = userEvent.setup()
+    renderDrawer(prTemplate)
+
+    await user.type(screen.getByLabelText('PR'), '99')
+    await user.click(screen.getByRole('button', { name: /^Gerar$/ }))
+    await screen.findByDisplayValue('Review plan: plan.md')
+    await user.click(screen.getByRole('button', { name: /^Criar filho$/ }))
+
+    await waitFor(() => {
+      expect(setLinkedDocumentPullRequest).toHaveBeenCalledWith('019e9f6a-94e7-7a23-965d-c8b05c63ee59', '99')
     })
   })
 })

@@ -6,6 +6,7 @@ using PromptTasks.Application.Features.LinkedDocuments.Commands.PauseLinkedDocum
 using PromptTasks.Application.Features.LinkedDocuments.Commands.RefreshLinkedDocument;
 using PromptTasks.Application.Features.LinkedDocuments.Commands.RemoveLinkedDocument;
 using PromptTasks.Application.Features.LinkedDocuments.Commands.ResumeLinkedDocument;
+using PromptTasks.Application.Features.LinkedDocuments.Commands.SetLinkedDocumentPullRequest;
 using PromptTasks.Application.Features.LinkedDocuments.Queries.GetLinkedDocument;
 using PromptTasks.Application.Features.LinkedDocuments.Queries.GetLinkedDocumentContent;
 using PromptTasks.Application.Features.LinkedDocuments.Queries.GetLinkedDocuments;
@@ -67,6 +68,13 @@ public sealed class LinkedDocumentsController(ISender sender) : ControllerBase
     public async Task<ActionResult<LinkedDocumentDto>> Refresh(Guid id, CancellationToken cancellationToken) =>
         Ok(await sender.Send(new RefreshLinkedDocumentCommand(id), cancellationToken));
 
+    [HttpPut("linked-documents/{id:guid}/pull-request")]
+    public async Task<ActionResult<LinkedDocumentDto>> SetPullRequest(
+        Guid id,
+        SetPullRequestRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new SetLinkedDocumentPullRequestCommand(id, request.PullRequest), cancellationToken));
+
     [HttpPost("linked-documents/{id:guid}/prompt-drafts")]
     public async Task<ActionResult<GeneratedPromptDraftDto>> GeneratePromptDraft(
         Guid id,
@@ -92,4 +100,6 @@ public sealed class LinkedDocumentsController(ISender sender) : ControllerBase
         PromptTemplateKey TemplateKey,
         string? PullRequest = null,
         IReadOnlyDictionary<string, string>? Inputs = null);
+
+    public sealed record SetPullRequestRequest(string? PullRequest);
 }

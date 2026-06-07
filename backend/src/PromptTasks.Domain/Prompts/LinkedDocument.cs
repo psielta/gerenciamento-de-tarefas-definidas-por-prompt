@@ -12,6 +12,7 @@ public sealed class LinkedDocument : Entity
     public LinkedDocumentType DocumentType { get; set; } = LinkedDocumentType.ClaudeCodePlan;
     public string? DisplayName { get; set; }
     public LinkedDocumentStatus Status { get; set; } = LinkedDocumentStatus.Draft;
+    public string? PullRequestReference { get; set; }
     public int CurrentVersion { get; set; }
     public string? LastContentHash { get; set; }
     public string? LastError { get; set; }

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
 import { queryKeys } from '@/api/query-keys'
-import type { PromptStatus, PromptWorkflowStatus, TaskSummary, Workflow } from '@/api/schemas'
+import type { PromptStatus, PromptTemplate, PromptWorkflowStatus, TaskSummary, Workflow } from '@/api/schemas'
 import { listWorkingDirectories } from '@/api/working-directories'
 import { completeWorkflow, getBoard, getWorkflow, getWorkflowTemplate, reopenWorkflow, setPhase, startWorkflow } from '@/api/workflow'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { buildColumns, type BoardColumn } from './board-columns'
 import { TaskCard } from './task-card'
 import { PromptDetailDrawer } from './prompt-detail-drawer'
 import { NewPromptDrawer } from './new-prompt-drawer'
+import { GeneratePromptDrawer } from '@/features/linked-documents/generate-prompt-drawer'
 
 const PROMPT_STATUS_OPTIONS: Array<{ value: PromptStatus | ''; label: string }> = [
   { value: '', label: 'Não arquivadas' },
@@ -41,6 +42,7 @@ export function Board() {
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
   const boardScrollerRef = useRef<HTMLDivElement>(null)
   const [openedTask, setOpenedTask] = useState<{ promptId: string; workspaceId: string; title: string } | null>(null)
+  const [generating, setGenerating] = useState<{ task: TaskSummary; template: PromptTemplate } | null>(null)
   const [creating, setCreating] = useState(false)
 
   useEffect(() => {
@@ -247,6 +249,7 @@ export function Board() {
             onOpen={(task) =>
               setOpenedTask({ promptId: task.promptId, workspaceId: task.workingDirectoryId, title: task.title })
             }
+            onGenerate={(task, template) => setGenerating({ task, template })}
           />
         ))}
         {column.tasks.length === 0 ? (
@@ -431,6 +434,16 @@ export function Board() {
           promptId={openedTask.promptId}
           title={openedTask.title}
           onClose={() => setOpenedTask(null)}
+        />
+      ) : null}
+
+      {generating && generating.task.linkedDocumentId ? (
+        <GeneratePromptDrawer
+          key={generating.task.promptId}
+          linkedDocumentId={generating.task.linkedDocumentId}
+          template={generating.template}
+          initialPullRequestReference={generating.task.pullRequestReference}
+          onClose={() => setGenerating(null)}
         />
       ) : null}
 

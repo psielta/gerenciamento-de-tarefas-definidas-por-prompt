@@ -60,6 +60,7 @@ public static class DtoMapper
             document.DisplayName ?? Path.GetFileName(document.AbsolutePath),
             document.DocumentType,
             document.Status,
+            document.PullRequestReference,
             document.CurrentVersion,
             document.LastContentHash,
             document.SizeBytes,

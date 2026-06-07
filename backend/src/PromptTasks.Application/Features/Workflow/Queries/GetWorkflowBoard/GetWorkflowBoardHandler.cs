@@ -70,17 +70,21 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
             .ToList()
             .ToHashSet();
 
-        var promptsWithLinkedPlan = context.LinkedDocuments
+        // Regra: no maximo 1 plano por prompt. Ordenacao deterministica (CreatedAtUtc, Id) precisa
+        // bater com a do TaskSummaryFactory para o card vir consistente entre fetch e realtime.
+        var linkedByPrompt = context.LinkedDocuments
             .Where(document => promptIds.Contains(document.PromptId))
-            .Select(document => document.PromptId)
-            .Distinct()
+            .OrderBy(document => document.CreatedAtUtc)
+            .ThenBy(document => document.Id)
             .ToList()
-            .ToHashSet();
+            .GroupBy(document => document.PromptId)
+            .ToDictionary(group => group.Key, group => group.First());
 
         var result = new List<TaskSummaryDto>();
         foreach (var prompt in prompts)
         {
             workflows.TryGetValue(prompt.Id, out var workflow);
+            linkedByPrompt.TryGetValue(prompt.Id, out var linkedDocument);
 
             if (request.WorkflowStatus is { } workflowStatus && (workflow is null || workflow.Status != workflowStatus))
             {
@@ -107,7 +111,9 @@ public sealed class GetWorkflowBoardHandler(IApplicationDbContext context, ICurr
                 workflow?.CurrentPhaseIteration ?? 1,
                 updatedAtUtc,
                 promptsWithChildren.Contains(prompt.Id),
-                promptsWithLinkedPlan.Contains(prompt.Id),
+                linkedDocument is not null,
+                linkedDocument?.Id,
+                linkedDocument?.PullRequestReference,
                 prompt.RowVersion.ToString(CultureInfo.InvariantCulture),
                 workflow is null || !phasesByWorkflowId.TryGetValue(workflow.Id, out var phases)
                     ? Array.Empty<WorkflowPhaseDto>()

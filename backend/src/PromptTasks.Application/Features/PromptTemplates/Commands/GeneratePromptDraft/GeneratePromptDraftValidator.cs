@@ -9,17 +9,10 @@ public sealed class GeneratePromptDraftValidator : AbstractValidator<GeneratePro
     {
         RuleFor(command => command.LinkedDocumentId).NotEmpty();
         RuleFor(command => command.TemplateKey).IsInEnum();
-        When(
-            command => command.TemplateKey is
-                PromptTemplateKey.ReviewPullRequest or
-                PromptTemplateKey.ReReviewPullRequest or
-                PromptTemplateKey.MergePullRequest,
-            () =>
-            {
-                RuleFor(command => GetInputValue(command, "pullRequest"))
-                    .NotEmpty()
-                    .MaximumLength(120);
-            });
+        // Obrigatoriedade da PR e validada no handler, apos resolver o fallback do plano vinculado
+        // (GeneratePromptDraftHandler). Aqui mantemos apenas o limite de tamanho do valor informado.
+        RuleFor(command => GetInputValue(command, "pullRequest"))
+            .MaximumLength(120);
         When(
             command => command.TemplateKey is PromptTemplateKey.ReReviewPullRequest,
             () =>

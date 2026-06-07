@@ -16,7 +16,14 @@ internal static class TaskSummaryFactory
             .Select(directory => directory.Name)
             .FirstOrDefault() ?? string.Empty;
         var hasChildPrompts = context.Prompts.Any(item => item.ParentPromptId == prompt.Id);
-        var hasLinkedPlan = context.LinkedDocuments.Any(document => document.PromptId == prompt.Id);
+        // No maximo 1 plano por prompt. Mesma ordenacao deterministica do GetWorkflowBoardHandler
+        // para o realtime bater com a query do quadro.
+        var linkedDocument = context.LinkedDocuments
+            .Where(document => document.PromptId == prompt.Id)
+            .OrderBy(document => document.CreatedAtUtc)
+            .ThenBy(document => document.Id)
+            .Select(document => new { document.Id, document.PullRequestReference })
+            .FirstOrDefault();
         var updatedAtUtc = workflow is not null && workflow.UpdatedAtUtc > prompt.UpdatedAtUtc
             ? workflow.UpdatedAtUtc
             : prompt.UpdatedAtUtc;
@@ -45,7 +52,9 @@ internal static class TaskSummaryFactory
             workflow?.CurrentPhaseIteration ?? 1,
             updatedAtUtc,
             hasChildPrompts,
-            hasLinkedPlan,
+            linkedDocument is not null,
+            linkedDocument?.Id,
+            linkedDocument?.PullRequestReference,
             prompt.RowVersion.ToString(CultureInfo.InvariantCulture),
             phases,
             workflow is null ? null : workflow.RowVersion.ToString(CultureInfo.InvariantCulture));

@@ -28,6 +28,8 @@ function makeTask(partial: Partial<TaskSummary>): TaskSummary {
     updatedAtUtc: '2026-06-01T12:00:00Z',
     hasChildPrompts: false,
     hasLinkedPlan: false,
+    linkedDocumentId: null,
+    pullRequestReference: null,
     promptRowVersion: '0',
     phases: [
       { id: 'phase-planning', name: 'Planejamento', defaultActor: 'ClaudeCode', orderIndex: 0, color: '#2563eb' },

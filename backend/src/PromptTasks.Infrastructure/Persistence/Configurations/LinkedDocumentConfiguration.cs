@@ -16,6 +16,7 @@ public sealed class LinkedDocumentConfiguration : IEntityTypeConfiguration<Linke
         builder.Property(document => document.DocumentType).HasConversion<int>().IsRequired();
         builder.Property(document => document.DisplayName).HasMaxLength(260);
         builder.Property(document => document.Status).HasConversion<int>().IsRequired();
+        builder.Property(document => document.PullRequestReference).HasMaxLength(120);
         builder.Property(document => document.CurrentVersion).IsRequired();
         builder.Property(document => document.LastContentHash).HasMaxLength(128);
         builder.Property(document => document.LastError).HasMaxLength(1024);
@@ -24,7 +25,8 @@ public sealed class LinkedDocumentConfiguration : IEntityTypeConfiguration<Linke
         builder.Property(document => document.CreatedAtUtc).IsRequired();
         builder.Property(document => document.UpdatedAtUtc).IsRequired();
         builder.HasIndex(document => document.Status);
-        builder.HasIndex(document => new { document.PromptId, document.AbsolutePathKey }).IsUnique();
+        // Regra: no maximo 1 plano vinculado por prompt (garantido por indice unico).
+        builder.HasIndex(document => document.PromptId).IsUnique();
 
         builder.HasOne(document => document.Prompt)
             .WithMany(prompt => prompt.LinkedDocuments)

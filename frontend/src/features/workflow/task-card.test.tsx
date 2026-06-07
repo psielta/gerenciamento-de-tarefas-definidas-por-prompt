@@ -26,6 +26,10 @@ vi.mock('@tanstack/react-router', () => ({
   },
 }))
 
+vi.mock('@/api/prompt-templates', () => ({
+  listPromptTemplates: vi.fn().mockResolvedValue([]),
+}))
+
 function makeTask(taskNumber: string | null, currentPhaseIteration = 1): TaskSummary {
   return {
     promptId: 'prompt-1',
@@ -44,6 +48,8 @@ function makeTask(taskNumber: string | null, currentPhaseIteration = 1): TaskSum
     updatedAtUtc: '2026-06-01T12:00:00Z',
     hasChildPrompts: false,
     hasLinkedPlan: false,
+    linkedDocumentId: null,
+    pullRequestReference: null,
     promptRowVersion: '0',
     phases: [
       { id: 'phase-1', name: 'Planejamento', defaultActor: 'ClaudeCode', orderIndex: 0, color: '#2563eb' },
@@ -91,5 +97,24 @@ describe('TaskCard', () => {
     cleanup()
     renderCard(null, 1)
     expect(screen.queryByText('re-review #1')).not.toBeInTheDocument()
+  })
+
+  it('shows the generate-child dropdown only when the card has a linked plan', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const task: TaskSummary = { ...makeTask(null), linkedDocumentId: 'doc-1', hasLinkedPlan: true }
+
+    render(
+      <QueryClientProvider client={client}>
+        <TaskCard task={task} />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByRole('button', { name: /gerar prompt filho/i })).toBeInTheDocument()
+  })
+
+  it('hides the generate-child dropdown without a linked plan', () => {
+    renderCard(null)
+
+    expect(screen.queryByRole('button', { name: /gerar prompt filho/i })).not.toBeInTheDocument()
   })
 })

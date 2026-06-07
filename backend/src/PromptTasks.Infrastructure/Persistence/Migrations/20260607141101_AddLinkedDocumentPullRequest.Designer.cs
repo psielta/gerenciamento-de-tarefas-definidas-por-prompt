@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PromptTasks.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using PromptTasks.Infrastructure.Persistence;
 namespace PromptTasks.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607141101_AddLinkedDocumentPullRequest")]
+    partial class AddLinkedDocumentPullRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -255,12 +258,12 @@ namespace PromptTasks.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PromptId")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("WorkingDirectoryId");
+
+                    b.HasIndex("PromptId", "AbsolutePathKey")
+                        .IsUnique();
 
                     b.ToTable("linked_documents", (string)null);
                 });
