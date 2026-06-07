@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TaskSummary } from '@/api/schemas'
@@ -74,19 +74,26 @@ describe('TaskCard', () => {
     cleanup()
   })
 
-  it('shows the task number badge and links to the task-number route when present', () => {
-    renderCard('BP001010626')
+  it('shows the task number badge and opens the detail drawer on click', () => {
+    const onOpen = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <TaskCard task={makeTask('BP001010626')} onOpen={onOpen} />
+      </QueryClientProvider>,
+    )
 
-    const link = screen.getByRole('link')
-    expect(within(link).getByText('BP001010626')).toBeInTheDocument()
-    expect(link).toHaveAttribute('href', '/workspaces/workspace-1/tasks/BP001010626')
+    expect(screen.getByText('BP001010626')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /abrir detalhes do prompt/i }))
+    expect(onOpen).toHaveBeenCalledTimes(1)
   })
 
-  it('hides the badge and keeps the prompt-id route when task number is absent', () => {
+  it('hides the task number badge when absent', () => {
     renderCard(null)
 
     expect(screen.queryByText('BP001010626')).not.toBeInTheDocument()
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/workspaces/workspace-1/prompts/prompt-1')
+    expect(screen.getByRole('button', { name: /abrir detalhes do prompt/i })).toBeInTheDocument()
   })
 
   it('shows a re-review badge only after the first phase iteration', () => {

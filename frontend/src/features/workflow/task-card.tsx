@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Archive, ArrowRight, CheckCircle2, FolderGit2, Loader2, Maximize2, PlayCircle } from 'lucide-react'
+import { Archive, ArrowRight, CheckCircle2, FolderGit2, Loader2, PlayCircle } from 'lucide-react'
 import type { DragEvent } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
@@ -129,25 +128,14 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
         isHumanTurn ? 'border-warning-solid' : 'border-border'
       } ${moveDisabled || isBusy ? '' : 'cursor-grab active:cursor-grabbing'} ${dragging || archive.isPending ? 'opacity-45' : ''}`}
     >
-      {task.taskNumber ? (
-        <Link
-          to="/workspaces/$workspaceId/tasks/$taskNumber"
-          params={{ workspaceId: task.workingDirectoryId, taskNumber: task.taskNumber }}
-          search={{}}
-          className="grid min-w-0 gap-2"
-        >
-          {linkContent}
-        </Link>
-      ) : (
-        <Link
-          to="/workspaces/$workspaceId/prompts/$promptId"
-          params={{ workspaceId: task.workingDirectoryId, promptId: task.promptId }}
-          search={{}}
-          className="grid min-w-0 gap-2"
-        >
-          {linkContent}
-        </Link>
-      )}
+      <button
+        type="button"
+        onClick={() => onOpen?.(task)}
+        className="grid min-w-0 gap-2 text-left"
+        aria-label="Abrir detalhes do prompt"
+      >
+        {linkContent}
+      </button>
 
       <div className="flex flex-wrap items-center gap-1.5">
         {task.currentPhaseName ? (
@@ -195,17 +183,6 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
               {isLastPhase ? 'Concluir' : 'Avançar'}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            onClick={() => onOpen?.(task)}
-            title="Abrir detalhes"
-            aria-label="Abrir detalhes do prompt"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
           <Button
             type="button"
             variant="ghost"
