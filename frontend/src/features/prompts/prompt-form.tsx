@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { FormField } from '@/components/form-field'
 import { createPrompt, deletePrompt, getPrompt, updatePrompt } from '@/api/prompts'
+import { listFutureTasks } from '@/api/future-tasks'
 import { queryKeys } from '@/api/query-keys'
 import { type FileMention, type Prompt } from '@/api/schemas'
 import { getErrorMessage } from '@/api/client'
@@ -22,6 +23,7 @@ import {
 } from './constants'
 import { useFileViewer } from '@/features/files/use-file-viewer'
 import { WorkspaceFileTree } from '@/features/files/workspace-file-tree'
+import { buildSeededPromptContent } from '@/features/future-tasks/seed-prompt-content'
 import { PromptEditor } from './prompt-editor'
 import { RefineDialog } from './ai/refine-dialog'
 import { AiAssistantPanel } from './ai/ai-assistant-panel'
@@ -52,11 +54,18 @@ export function PromptForm({
   const [showRefineDialog, setShowRefineDialog] = useState(false)
   const [showTranslateDialog, setShowTranslateDialog] = useState(false)
   const [showAiPanel, setShowAiPanel] = useState(false)
+  const [futureTaskId, setFutureTaskId] = useState('')
 
   const promptQuery = useQuery({
     queryKey: promptId ? queryKeys.prompts.detail(promptId) : ['prompts', 'new'],
     queryFn: () => getPrompt(promptId ?? ''),
     enabled: Boolean(promptId),
+  })
+
+  const futureTasksQuery = useQuery({
+    queryKey: queryKeys.futureTasks.list({ workingDirectoryId }),
+    queryFn: () => listFutureTasks({ workingDirectoryId }),
+    enabled: !promptId,
   })
 
   const form = useForm<PromptFormValues>({
@@ -94,10 +103,31 @@ export function PromptForm({
       ? editorMentions.mentions
       : promptQuery.data?.mentions ?? []
 
+  const handleSelectFutureTask = (taskId: string) => {
+    setFutureTaskId(taskId)
+    if (!taskId) {
+      return
+    }
+
+    const task = futureTasksQuery.data?.find((item) => item.id === taskId)
+    if (!task) {
+      return
+    }
+
+    form.setValue('content', buildSeededPromptContent(task), { shouldDirty: true, shouldValidate: true })
+    setEditorMentions({ promptId, mentions: [] })
+    if (!form.getValues('title').trim()) {
+      form.setValue('title', task.title, { shouldDirty: true, shouldValidate: true })
+    }
+  }
+
   const createMutation = useMutation({
     mutationFn: createPrompt,
     onSuccess: async (prompt) => {
       await afterSave(prompt)
+      if (futureTaskId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.futureTasks.all })
+      }
       toast.success('Prompt criado.')
       if (onCreated) {
         onCreated(prompt)
@@ -166,6 +196,7 @@ export function PromptForm({
 
     createMutation.mutate({
       workingDirectoryId,
+      futureTaskId: futureTaskId || undefined,
       ...values,
       mentions,
     })
@@ -237,6 +268,23 @@ export function PromptForm({
         />
       ) : null}
       <div className="grid content-start gap-4 rounded-lg border border-border bg-card p-4">
+        {!promptId && (futureTasksQuery.data?.length ?? 0) > 0 ? (
+          <FormField label="Tarefa futura (opcional)" htmlFor="prompt-future-task">
+            <Select
+              id="prompt-future-task"
+              value={futureTaskId}
+              onChange={(event) => handleSelectFutureTask(event.target.value)}
+            >
+              <option value="">Nenhuma</option>
+              {futureTasksQuery.data?.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+
         <FormField label="Titulo" htmlFor="prompt-title" error={form.formState.errors.title?.message}>
           <Input id="prompt-title" placeholder="Planejar refatoracao do modulo X" {...form.register('title')} />
         </FormField>
