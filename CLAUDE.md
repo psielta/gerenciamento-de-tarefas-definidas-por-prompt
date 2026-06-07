@@ -16,7 +16,7 @@ Prompt Tasks e uma aplicacao ASP.NET Core + React para criar, versionar e acompa
 ## Stack
 
 - Backend: .NET 10, ASP.NET Core, MediatR, FluentValidation, EF Core, PostgreSQL, Newtonsoft.Json, SignalR.
-- Frontend: React, Vite, TypeScript, TanStack Query, TanStack Router, React Hook Form, Zod, TipTap, Tailwind CSS, componentes estilo shadcn/ui.
+- Frontend: React, Vite, TypeScript, TanStack Query, TanStack Router, React Hook Form, Zod, TipTap, Monaco Editor, Tailwind CSS, componentes estilo shadcn/ui.
 - Testes: xUnit, FluentAssertions, Testcontainers, Vitest e Testing Library.
 
 ## Regras que Nao Devem Ser Quebradas

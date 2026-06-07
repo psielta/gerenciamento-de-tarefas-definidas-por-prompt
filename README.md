@@ -23,6 +23,8 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - Monitoramento de alteracoes desses planos, versionamento automatico e atualizacao em tempo real via SignalR.
 - Pausa, retomada, atualizacao manual e remocao de planos vinculados.
 - Renderizacao de Markdown versionado no navegador com historico navegavel.
+- Navegador de arquivos do diretorio de trabalho: arvore lazy-loaded e busca por nome, disponivel na aba `Arquivos` do workspace e em uma pagina global `Arquivos` no header, com seletor de diretorio cuja ultima escolha e persistida no navegador.
+- Visualizador de codigo somente leitura baseado no Monaco Editor, com realce de sintaxe, tema sincronizado com o app e atualizacao em tempo real via SignalR quando o arquivo muda no disco.
 - Templates de prompts para fluxo de revisao, implementacao, rebase e merge de planos, com atualizacao automatica da fase da tarefa pai quando aplicavel.
 - Indicadores no header para limites atuais de Claude Code e Codex, lendo as fontes locais dos agentes e sincronizando atualizacoes via SignalR.
 - **Assistente IA com Gemini:** refinamento de prompts, chat de suporte e configuracao de modelo diretamente na tela de criacao e edicao.
@@ -54,6 +56,7 @@ O caso de uso principal e simples: o usuario cadastra um diretorio de trabalho, 
 - TanStack Query para cache, sincronizacao e invalidacao de dados.
 - React Hook Form e Zod para formularios e contratos de API.
 - TipTap para editor Markdown com mencoes de arquivo.
+- Monaco Editor (`@monaco-editor/react`) para o visualizador de arquivos do workspace com realce de sintaxe.
 - Tailwind CSS 4 e componentes no estilo shadcn/ui.
 - SignalR client para atualizacoes em tempo real.
 - `react-markdown` com `remark-gfm` para renderizacao de respostas do assistente IA.
@@ -111,6 +114,7 @@ O backend segue um fluxo orientado a casos de uso. Controllers chamam MediatR, h
 16. O botao **IA** abre um drawer lateral com chat de suporte especializado em engenharia de prompts; o usuario pode incluir o conteudo do prompt atual como contexto da conversa.
 17. O painel de **Configuracao** do drawer permite escolher o modelo Gemini, ajustar a temperatura e definir o nivel de raciocinio. As configuracoes sao salvas por usuario.
 18. Em cada workspace, o usuario pode ativar o **Contexto de IA** para injetar `README.md`, `CLAUDE.md` e `AGENT.md` nas instrucoes de sistema do Gemini durante o refinamento e o chat.
+19. A qualquer momento, o usuario pode navegar e visualizar os arquivos do diretorio de trabalho pela pagina global `Arquivos` no header ou pela aba `Arquivos` do workspace, com busca por nome e visualizacao somente leitura no Monaco Editor.
 
 ## Como Executar
 
@@ -217,6 +221,7 @@ npm audit --audit-level=moderate
 - O workflow combina acoes manuais com transicoes automaticas geradas por templates de prompt filho; concluir e reabrir continuam dependendo de acao explicita do usuario.
 - Concluir o workflow nao arquiva o prompt; `Prompt.Status` e `PromptWorkflow.Status` sao estados separados.
 - Arquivos mencionados em prompts precisam existir dentro do diretorio de trabalho.
+- O visualizador de arquivos do workspace e somente leitura; a edicao continua sendo feita no editor local do usuario.
 - Planos vinculados podem ser monitorados em background, pausados e retomados.
 - Ao arquivar um prompt, os planos vinculados devem parar de ser monitorados.
 - Ao arquivar ou excluir um prompt, os caches Gemini das sessoes associadas sao liberados proativamente para evitar custo de armazenamento desnecessario.
