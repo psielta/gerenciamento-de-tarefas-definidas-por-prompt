@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using PromptTasks.Application.Common.Models;
+using PromptTasks.Domain.FutureTasks;
 using PromptTasks.Domain.Prompts;
 using PromptTasks.Infrastructure.Persistence;
 
@@ -467,6 +468,94 @@ public sealed class ApiFlowTests(PromptTasksApiFactory factory) : IClassFixture<
             new { templateKey = PromptTemplateKey.ReviewPlan },
             JsonOptions);
         missingDocumentResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Future_task_flow_creates_links_prompt_and_archives()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempRoot, "repo"));
+
+        var client = factory.CreateClient();
+        var wdResponse = await client.PostAsJsonAsync(
+            "/api/working-directories",
+            new { name = "repo", absolutePath = Path.Combine(_tempRoot, "repo"), respectGitignore = true },
+            JsonOptions);
+        wdResponse.EnsureSuccessStatusCode();
+        var wd = await wdResponse.Content.ReadFromJsonAsync<WorkingDirectoryDto>(JsonOptions);
+
+        var createTaskResponse = await client.PostAsJsonAsync(
+            "/api/future-tasks",
+            new
+            {
+                workingDirectoryId = wd!.Id,
+                title = "Add dark mode",
+                description = "Support a dark theme",
+                type = FutureTaskType.Feature,
+                labels = new[] { "frontend", "ai" }
+            },
+            JsonOptions);
+        createTaskResponse.StatusCode.Should().Be(HttpStatusCode.Created, await createTaskResponse.Content.ReadAsStringAsync());
+        var task = await createTaskResponse.Content.ReadFromJsonAsync<FutureTaskDto>(JsonOptions);
+        task!.Status.Should().Be(FutureTaskStatus.Open);
+        task.Type.Should().Be(FutureTaskType.Feature);
+        task.Labels.Should().BeEquivalentTo("frontend", "ai");
+        task.LinkedPromptCount.Should().Be(0);
+
+        var tasks = await client.GetFromJsonAsync<FutureTaskDto[]>(
+            $"/api/future-tasks?workingDirectoryId={wd.Id}",
+            JsonOptions);
+        tasks.Should().ContainSingle(item => item.Id == task.Id);
+
+        var promptResponse = await client.PostAsJsonAsync(
+            "/api/prompts",
+            new
+            {
+                workingDirectoryId = wd.Id,
+                futureTaskId = task.Id,
+                title = "Implement dark mode",
+                content = "Work on the dark mode task",
+                targetAgent = TargetAgent.Codex,
+                kind = PromptKind.General,
+                status = PromptStatus.Draft,
+                mentions = Array.Empty<object>()
+            },
+            JsonOptions);
+        promptResponse.EnsureSuccessStatusCode();
+        var prompt = await promptResponse.Content.ReadFromJsonAsync<PromptDto>(JsonOptions);
+        prompt!.FutureTaskId.Should().Be(task.Id);
+
+        var linkedPrompts = await client.GetFromJsonAsync<PromptDto[]>(
+            $"/api/prompts?workingDirectoryId={wd.Id}&futureTaskId={task.Id}",
+            JsonOptions);
+        linkedPrompts.Should().ContainSingle(item => item.Id == prompt.Id);
+
+        var afterLink = await client.GetFromJsonAsync<FutureTaskDto>($"/api/future-tasks/{task.Id}", JsonOptions);
+        afterLink!.Status.Should().Be(FutureTaskStatus.InProgress);
+        afterLink.LinkedPromptCount.Should().Be(1);
+
+        var archiveResponse = await client.PatchAsJsonAsync(
+            $"/api/future-tasks/{task.Id}/status",
+            new { status = FutureTaskStatus.Archived, rowVersion = afterLink.RowVersion },
+            JsonOptions);
+        archiveResponse.EnsureSuccessStatusCode();
+        var archived = await archiveResponse.Content.ReadFromJsonAsync<FutureTaskDto>(JsonOptions);
+        archived!.Status.Should().Be(FutureTaskStatus.Archived);
+
+        var defaultList = await client.GetFromJsonAsync<FutureTaskDto[]>(
+            $"/api/future-tasks?workingDirectoryId={wd.Id}",
+            JsonOptions);
+        defaultList.Should().NotContain(item => item.Id == task.Id);
+
+        var withArchived = await client.GetFromJsonAsync<FutureTaskDto[]>(
+            $"/api/future-tasks?workingDirectoryId={wd.Id}&includeArchived=true",
+            JsonOptions);
+        withArchived.Should().ContainSingle(item => item.Id == task.Id);
+
+        var deleteResponse = await client.DeleteAsync($"/api/future-tasks/{task.Id}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var promptAfterDelete = await client.GetFromJsonAsync<PromptDto>($"/api/prompts/{prompt.Id}", JsonOptions);
+        promptAfterDelete!.FutureTaskId.Should().BeNull();
     }
 
     public void Dispose()
