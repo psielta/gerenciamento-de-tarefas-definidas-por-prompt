@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/api/client'
 import { deleteFutureTask, listFutureTasks, updateFutureTaskStatus } from '@/api/future-tasks'
 import { queryKeys } from '@/api/query-keys'
 import { type FutureTask, type FutureTaskStatus, type FutureTaskType } from '@/api/schemas'
+import { MarkdownPreview } from '@/components/markdown-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -169,7 +170,7 @@ export function FutureTaskList({ workspaceId }: FutureTaskListProps) {
               </div>
 
               {task.description.trim() ? (
-                <p className="line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{task.description}</p>
+                <MarkdownPreview className="mt-1 max-h-32">{task.description}</MarkdownPreview>
               ) : null}
 
               <div className="flex flex-wrap items-center gap-2">

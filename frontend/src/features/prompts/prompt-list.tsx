@@ -6,6 +6,7 @@ import { listPrompts } from '@/api/prompts'
 import { queryKeys } from '@/api/query-keys'
 import type { PromptKind, PromptStatus, TargetAgent } from '@/api/schemas'
 import { getBoard } from '@/api/workflow'
+import { MarkdownPreview } from '@/components/markdown-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -143,7 +144,7 @@ export function PromptList({ workingDirectoryId }: PromptListProps) {
                   {prompt.taskNumber ? <Badge variant="blue">{prompt.taskNumber}</Badge> : null}
                   <span className="truncate">{prompt.title}</span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{prompt.content}</p>
+                <MarkdownPreview className="mt-1 max-h-40">{prompt.content}</MarkdownPreview>
                 {taskSummary ? (
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {taskSummary.currentPhaseName ? (

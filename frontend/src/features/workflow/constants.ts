@@ -71,7 +71,13 @@ export const RE_REVIEW_TEMPLATE_BY_ROLE: Partial<Record<WorkflowPhaseRole, Promp
   ReviewCorrection: 'ReReviewPullRequest',
 }
 
+export const PLAN_REVIEW_TEMPLATE_KEYS = ['ReviewPlan', 'ReviewPlanWithParentPrompt'] as const
 export const IMPLEMENTATION_TEMPLATE_KEYS = ['ImplementPlan', 'ImplementPlanInWorktree'] as const
+
+export const PLANNING_REVIEW_ACTION = {
+  targetRole: 'PlanReview',
+  label: 'Avançar para revisão',
+} satisfies { targetRole: WorkflowPhaseRole; label: string }
 
 export const PLAN_REVIEW_IMPLEMENTATION_ACTION = {
   targetRole: 'Implementation',

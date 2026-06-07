@@ -236,6 +236,11 @@ describe('TaskCard', () => {
     { id: 'phase-plan-correction', name: 'Correção do plano', defaultActor: 'ClaudeCode', orderIndex: 1, color: '#d97706', role: 'PlanCorrection' },
     { id: 'phase-impl', name: 'Implementação', defaultActor: 'Codex', orderIndex: 2, color: '#0d9488', role: 'Implementation' },
   ]
+  const PLANNING_PHASES: WorkflowPhase[] = [
+    { id: 'phase-planning', name: 'Planejamento', defaultActor: 'ClaudeCode', orderIndex: 0, color: '#2563eb', role: 'Planning' },
+    { id: 'phase-review', name: 'Revisão do plano', defaultActor: 'Codex', orderIndex: 1, color: '#7c3aed', role: 'PlanReview' },
+    { id: 'phase-impl', name: 'Implementação', defaultActor: 'Codex', orderIndex: 2, color: '#0d9488', role: 'Implementation' },
+  ]
   const CODE_REVIEW_PHASES: WorkflowPhase[] = [
     { id: 'phase-code-review', name: 'Revisão de código', defaultActor: 'Codex', orderIndex: 0, color: '#7c3aed', role: 'CodeReview' },
     { id: 'phase-review-correction', name: 'Correção da revisão', defaultActor: 'ClaudeCode', orderIndex: 1, color: '#d97706', role: 'ReviewCorrection' },
@@ -298,6 +303,38 @@ describe('TaskCard', () => {
     })
 
     expect(screen.queryByRole('button', { name: /re-review do plano/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the selected plan-review child-prompt template from Planning', async () => {
+    vi.mocked(listPromptTemplates).mockResolvedValue([
+      makeTemplate('ReviewPlan', 'Basic plan review'),
+      makeTemplate('ReviewPlanWithParentPrompt', 'Plan review with parent prompt'),
+    ])
+    const onGenerate = vi.fn()
+    renderTask(
+      {
+        ...makeTask(null),
+        linkedDocumentId: 'doc-1',
+        hasLinkedPlan: true,
+        currentPhaseId: 'phase-planning',
+        currentPhaseName: 'Planning',
+        phases: PLANNING_PHASES,
+      },
+      onGenerate,
+    )
+
+    const advanceButton = screen.getByRole('button', { name: /revis/i })
+    await waitFor(() => expect(advanceButton).not.toBeDisabled())
+    fireEvent.click(advanceButton)
+    expect(screen.getByRole('dialog', { name: /escolher revis/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /with parent prompt/i }))
+
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({ promptId: 'prompt-1' }),
+      expect.objectContaining({ key: 'ReviewPlanWithParentPrompt' }),
+    )
+    expect(vi.mocked(workflowApi.setPhase)).not.toHaveBeenCalled()
+    expect(vi.mocked(workflowApi.advancePhase)).not.toHaveBeenCalled()
   })
 
   it('asks for the implementation template before advancing from PlanReview', async () => {

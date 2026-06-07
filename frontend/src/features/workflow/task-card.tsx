@@ -15,6 +15,8 @@ import { ActorBadge, PhaseBadge } from './badges'
 import {
   APPROVE_ADVANCE_BY_ROLE,
   IMPLEMENTATION_TEMPLATE_KEYS,
+  PLANNING_REVIEW_ACTION,
+  PLAN_REVIEW_TEMPLATE_KEYS,
   PLAN_REVIEW_IMPLEMENTATION_ACTION,
   findPhaseByRole,
   formatRelativeTime,
@@ -48,12 +50,14 @@ function formatWorkspaceName(name: string) {
 export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd, onOpen, onGenerate, onLinkPlan }: TaskCardProps) {
   const queryClient = useQueryClient()
   const [showVerdict, setShowVerdict] = useState(false)
+  const [showPlanReviewChoice, setShowPlanReviewChoice] = useState(false)
   const [showImplementationChoice, setShowImplementationChoice] = useState(false)
 
   const currentPhase = task.phases.find((phase) => phase.id === task.currentPhaseId)
   const currentRole = currentPhase?.role ?? null
   const reReviewKey = currentRole ? RE_REVIEW_TEMPLATE_BY_ROLE[currentRole] : undefined
   const approveTarget = currentRole ? APPROVE_ADVANCE_BY_ROLE[currentRole] : undefined
+  const planReviewAction = currentRole === 'Planning' ? PLANNING_REVIEW_ACTION : undefined
   const implementationAction = currentRole === 'PlanReview' ? PLAN_REVIEW_IMPLEMENTATION_ACTION : undefined
 
   const invalidate = () => {
@@ -66,9 +70,13 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
   const templatesQuery = useQuery({
     queryKey: queryKeys.promptTemplates.all,
     queryFn: listPromptTemplates,
-    enabled: Boolean(task.linkedDocumentId && (reReviewKey || implementationAction)),
+    enabled: Boolean(task.linkedDocumentId && (reReviewKey || planReviewAction || implementationAction)),
   })
   const reReviewTemplate = reReviewKey ? templatesQuery.data?.find((template) => template.key === reReviewKey) : undefined
+  const planReviewTemplates = PLAN_REVIEW_TEMPLATE_KEYS.map((key) =>
+    templatesQuery.data?.find((template) => template.key === key),
+  )
+  const [basicPlanReviewTemplate, parentPlanReviewTemplate] = planReviewTemplates
   const implementationTemplates = IMPLEMENTATION_TEMPLATE_KEYS.map((key) =>
     templatesQuery.data?.find((template) => template.key === key),
   )
@@ -151,6 +159,9 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
     ? currentPhase.orderIndex === Math.max(...task.phases.map((phase) => phase.orderIndex))
     : false
   const isBusy = start.isPending || advanceOrComplete.isPending || archive.isPending || approveAdvance.isPending
+  const hasPlanReviewTarget = Boolean(
+    planReviewAction && findPhaseByRole(task.phases, planReviewAction.targetRole),
+  )
   const hasImplementationTarget = Boolean(
     implementationAction && findPhaseByRole(task.phases, implementationAction.targetRole),
   )
@@ -245,6 +256,28 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
         </div>
       ) : null}
 
+      {task.workflowStatus === 'Active' && task.linkedDocumentId && planReviewAction && hasPlanReviewTarget ? (
+        <div className="flex">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (!basicPlanReviewTemplate || !parentPlanReviewTemplate) {
+                toast.error('Templates de revisão indisponíveis.')
+                return
+              }
+
+              setShowPlanReviewChoice(true)
+            }}
+            disabled={isBusy || templatesQuery.isLoading}
+          >
+            <FastForward className="h-4 w-4" />
+            {planReviewAction.label}
+          </Button>
+        </div>
+      ) : null}
+
       {task.workflowStatus === 'Active' && approveTarget && findPhaseByRole(task.phases, approveTarget.targetRole) ? (
         <div className="flex">
           <Button
@@ -323,6 +356,55 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
 
       {showVerdict ? (
         <ReviewVerdictDialog promptId={task.promptId} onClose={() => setShowVerdict(false)} />
+      ) : null}
+
+      {showPlanReviewChoice && basicPlanReviewTemplate && parentPlanReviewTemplate ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="plan-review-choice-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowPlanReviewChoice(false)
+            }
+          }}
+        >
+          <div className="grid w-full max-w-lg gap-4 rounded-lg border border-border bg-card p-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <h2 id="plan-review-choice-title" className="text-sm font-semibold text-foreground">
+                Escolher revisão
+              </h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground"
+                onClick={() => setShowPlanReviewChoice(false)}
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid gap-2">
+              {[basicPlanReviewTemplate, parentPlanReviewTemplate].map((template) => (
+                <button
+                  key={template.key}
+                  type="button"
+                  className="grid min-w-0 gap-1 rounded-md border border-border bg-background px-3 py-2 text-left text-sm transition-colors hover:border-ring hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                  onClick={() => {
+                    setShowPlanReviewChoice(false)
+                    onGenerate?.(task, template)
+                  }}
+                >
+                  <span className="font-medium text-foreground">{template.displayName}</span>
+                  <span className="text-xs text-muted-foreground">{template.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {showImplementationChoice && basicImplementationTemplate && worktreeImplementationTemplate ? (

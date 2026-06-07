@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { listPrompts } from '@/api/prompts'
 import { queryKeys } from '@/api/query-keys'
 import type { Prompt, PromptStatus } from '@/api/schemas'
+import { MarkdownPreview } from '@/components/markdown-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useFileViewer } from '@/features/files/use-file-viewer'
@@ -68,7 +69,7 @@ export function PromptChildrenPanel({ workingDirectoryId, parentPromptId }: Prom
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-foreground">{prompt.title}</div>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{prompt.content}</p>
+                <MarkdownPreview className="mt-1 max-h-32">{prompt.content}</MarkdownPreview>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1.5">
                 <StatusBadge status={prompt.status} />
