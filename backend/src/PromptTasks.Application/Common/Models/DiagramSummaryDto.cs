@@ -5,6 +5,7 @@ namespace PromptTasks.Application.Common.Models;
 public sealed record DiagramSummaryDto(
     Guid Id,
     Guid WorkingDirectoryId,
+    string WorkingDirectoryName,
     string Title,
     string? Description,
     DiagramType Type,

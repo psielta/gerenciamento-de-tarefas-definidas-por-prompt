@@ -137,13 +137,23 @@ public sealed class DiagramApiTests(PromptTasksApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task Listing_diagrams_without_a_workspace_returns_bad_request()
+    public async Task Listing_diagrams_without_a_workspace_returns_all_owned_diagrams_with_workspace_name()
     {
         var client = factory.CreateClient();
+        var workspaceId = await CreateWorkspaceAsync(client);
 
-        var response = await client.GetAsync("/api/diagrams");
+        var create = await client.PostAsJsonAsync(
+            "/api/diagrams",
+            new { workingDirectoryId = workspaceId, title = "Global board", type = DiagramType.Excalidraw },
+            JsonOptions);
+        create.StatusCode.Should().Be(HttpStatusCode.Created, await create.Content.ReadAsStringAsync());
+        var diagram = await create.Content.ReadFromJsonAsync<DiagramDto>(JsonOptions);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        // No workspace filter: the global /diagramas list returns the user's diagrams
+        // across every workspace, each carrying its workspace name.
+        var all = await client.GetFromJsonAsync<DiagramSummaryDto[]>("/api/diagrams", JsonOptions);
+        all.Should().Contain(item => item.Id == diagram!.Id);
+        all!.Single(item => item.Id == diagram!.Id).WorkingDirectoryName.Should().Be("repo");
     }
 
     private async Task<Guid> CreateWorkspaceAsync(HttpClient client)

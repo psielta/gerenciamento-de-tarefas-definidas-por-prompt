@@ -116,6 +116,24 @@ public sealed class DiagramHandlerTests
     }
 
     [Fact]
+    public async Task GetDiagrams_without_workspace_lists_across_all_owned_workspaces_with_name()
+    {
+        var context = new FakeDiagramDbContext();
+        var first = SeedWorkingDirectory(context, OwnerId);
+        var second = SeedWorkingDirectory(context, OwnerId);
+        SeedDiagram(context, first.Id, "Board", DiagramType.Excalidraw);
+        SeedDiagram(context, second.Id, "States", DiagramType.Mermaid);
+        SeedDiagram(context, first.Id, "Theirs", DiagramType.Mermaid, ownerId: OtherUserId);
+
+        var handler = new GetDiagramsHandler(context, CurrentUser());
+
+        var all = await handler.Handle(new GetDiagramsQuery(), CancellationToken.None);
+
+        all.Select(diagram => diagram.Title).Should().BeEquivalentTo("Board", "States");
+        all.Should().OnlyContain(diagram => diagram.WorkingDirectoryName == "repo");
+    }
+
+    [Fact]
     public async Task GetDiagram_for_other_user_throws_not_found()
     {
         var context = new FakeDiagramDbContext();

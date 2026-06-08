@@ -17,7 +17,7 @@ public sealed class DiagramsController(ISender sender) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DiagramSummaryDto>>> Get(
-        [FromQuery] Guid workingDirectoryId,
+        [FromQuery] Guid? workingDirectoryId,
         [FromQuery] string? q,
         [FromQuery] DiagramType? type,
         [FromQuery] bool includeArchived,
