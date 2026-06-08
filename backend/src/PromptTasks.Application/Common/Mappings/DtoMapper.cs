@@ -1,5 +1,6 @@
 using System.Globalization;
 using PromptTasks.Application.Common.Models;
+using PromptTasks.Domain.Diagrams;
 using PromptTasks.Domain.FutureTasks;
 using PromptTasks.Domain.Notebooks;
 using PromptTasks.Domain.Prompts;
@@ -31,6 +32,19 @@ public static class DtoMapper
             note.IsArchived,
             note.CreatedAtUtc,
             note.UpdatedAtUtc);
+
+    public static DiagramDto ToDto(this Diagram diagram) =>
+        new(
+            diagram.Id,
+            diagram.WorkingDirectoryId,
+            diagram.Title,
+            diagram.Description,
+            diagram.Type,
+            diagram.Content,
+            diagram.MetadataJson,
+            diagram.IsArchived,
+            diagram.CreatedAtUtc,
+            diagram.UpdatedAtUtc);
 
     public static WorkingDirectoryDto ToDto(this WorkingDirectory workingDirectory) =>
         new(
