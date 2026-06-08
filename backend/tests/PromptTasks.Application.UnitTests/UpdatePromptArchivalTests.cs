@@ -195,6 +195,7 @@ public sealed class UpdatePromptArchivalTests
         public IQueryable<PromptTasks.Domain.Ai.AiUserSettings> AiUserSettings => Enumerable.Empty<PromptTasks.Domain.Ai.AiUserSettings>().AsQueryable();
         public IQueryable<PromptTasks.Domain.Notebooks.Notebook> Notebooks => Enumerable.Empty<PromptTasks.Domain.Notebooks.Notebook>().AsQueryable();
         public IQueryable<PromptTasks.Domain.Notebooks.Note> Notes => Enumerable.Empty<PromptTasks.Domain.Notebooks.Note>().AsQueryable();
+        public IQueryable<PromptTasks.Domain.Diagrams.Diagram> Diagrams => Enumerable.Empty<PromptTasks.Domain.Diagrams.Diagram>().AsQueryable();
 
         public void Add<TEntity>(TEntity entity) where TEntity : class
         {

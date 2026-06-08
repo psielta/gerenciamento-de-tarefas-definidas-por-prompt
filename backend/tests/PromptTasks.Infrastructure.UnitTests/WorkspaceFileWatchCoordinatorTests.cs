@@ -137,6 +137,7 @@ public sealed class WorkspaceFileWatchCoordinatorTests : IDisposable
         public IQueryable<Domain.Ai.AiUserSettings> AiUserSettings => Array.Empty<Domain.Ai.AiUserSettings>().AsQueryable();
         public IQueryable<Domain.Notebooks.Notebook> Notebooks => Array.Empty<Domain.Notebooks.Notebook>().AsQueryable();
         public IQueryable<Domain.Notebooks.Note> Notes => Array.Empty<Domain.Notebooks.Note>().AsQueryable();
+        public IQueryable<Domain.Diagrams.Diagram> Diagrams => Array.Empty<Domain.Diagrams.Diagram>().AsQueryable();
 
         public void Add<TEntity>(TEntity entity) where TEntity : class
         {

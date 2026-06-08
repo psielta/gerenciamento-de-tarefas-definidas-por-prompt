@@ -1,4 +1,5 @@
 using PromptTasks.Domain.Ai;
+using PromptTasks.Domain.Diagrams;
 using PromptTasks.Domain.FutureTasks;
 using PromptTasks.Domain.Notebooks;
 using PromptTasks.Domain.Prompts;
@@ -29,6 +30,7 @@ public interface IApplicationDbContext
     IQueryable<AiUserSettings> AiUserSettings { get; }
     IQueryable<Notebook> Notebooks { get; }
     IQueryable<Note> Notes { get; }
+    IQueryable<Diagram> Diagrams { get; }
 
     void Add<TEntity>(TEntity entity) where TEntity : class;
     void AddRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class;

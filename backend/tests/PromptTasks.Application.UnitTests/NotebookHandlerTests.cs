@@ -338,6 +338,7 @@ public sealed class NotebookHandlerTests
         public IQueryable<Domain.Ai.AiUserSettings> AiUserSettings => Enumerable.Empty<Domain.Ai.AiUserSettings>().AsQueryable();
         public IQueryable<Notebook> Notebooks => NotebookItems.AsQueryable();
         public IQueryable<Note> Notes => NoteItems.AsQueryable();
+        public IQueryable<PromptTasks.Domain.Diagrams.Diagram> Diagrams => Enumerable.Empty<PromptTasks.Domain.Diagrams.Diagram>().AsQueryable();
 
         public void Add<TEntity>(TEntity entity) where TEntity : class
         {

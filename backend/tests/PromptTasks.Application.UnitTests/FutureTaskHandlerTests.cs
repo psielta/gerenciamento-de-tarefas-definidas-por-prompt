@@ -209,6 +209,7 @@ public sealed class FutureTaskHandlerTests
         public IQueryable<AiUserSettings> AiUserSettings => Array.Empty<AiUserSettings>().AsQueryable();
         public IQueryable<PromptTasks.Domain.Notebooks.Notebook> Notebooks => Array.Empty<PromptTasks.Domain.Notebooks.Notebook>().AsQueryable();
         public IQueryable<PromptTasks.Domain.Notebooks.Note> Notes => Array.Empty<PromptTasks.Domain.Notebooks.Note>().AsQueryable();
+        public IQueryable<PromptTasks.Domain.Diagrams.Diagram> Diagrams => Array.Empty<PromptTasks.Domain.Diagrams.Diagram>().AsQueryable();
 
         public void Add<TEntity>(TEntity entity) where TEntity : class
         {

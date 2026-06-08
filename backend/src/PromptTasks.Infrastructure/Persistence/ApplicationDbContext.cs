@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PromptTasks.Application.Common.Interfaces;
 using PromptTasks.Domain.Ai;
 using PromptTasks.Domain.Common;
+using PromptTasks.Domain.Diagrams;
 using PromptTasks.Domain.FutureTasks;
 using PromptTasks.Domain.Notebooks;
 using PromptTasks.Domain.Prompts;
@@ -37,6 +38,7 @@ public sealed class ApplicationDbContext(
     public DbSet<AiUserSettings> AiUserSettings => Set<AiUserSettings>();
     public DbSet<Notebook> Notebooks => Set<Notebook>();
     public DbSet<Note> Notes => Set<Note>();
+    public DbSet<Diagram> Diagrams => Set<Diagram>();
 
     IQueryable<User> IApplicationDbContext.Users => Users;
     IQueryable<WorkingDirectory> IApplicationDbContext.WorkingDirectories => WorkingDirectories;
@@ -57,6 +59,7 @@ public sealed class ApplicationDbContext(
     IQueryable<AiUserSettings> IApplicationDbContext.AiUserSettings => AiUserSettings;
     IQueryable<Notebook> IApplicationDbContext.Notebooks => Notebooks;
     IQueryable<Note> IApplicationDbContext.Notes => Notes;
+    IQueryable<Diagram> IApplicationDbContext.Diagrams => Diagrams;
 
     void IApplicationDbContext.Add<TEntity>(TEntity entity) => Set<TEntity>().Add(entity);
     void IApplicationDbContext.AddRange<TEntity>(IEnumerable<TEntity> entities) => Set<TEntity>().AddRange(entities);
