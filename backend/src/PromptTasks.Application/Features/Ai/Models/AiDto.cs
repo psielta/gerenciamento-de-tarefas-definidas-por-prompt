@@ -2,6 +2,19 @@ namespace PromptTasks.Application.Features.Ai.Models;
 
 public sealed record RefinedPromptDto(string Content, int PromptTokens, int CandidateTokens);
 
+public sealed record GeneratedNoteDto(
+    string? SuggestedTitle,
+    string ContentMarkdown,
+    int PromptTokens,
+    int CandidateTokens);
+
+public sealed record GeneratedMermaidDto(
+    string MermaidCode,
+    string? TitleSuggestion,
+    int PromptTokens,
+    int CandidateTokens,
+    IReadOnlyList<string> Warnings);
+
 public sealed record GeminiModelDto(
     string Id,
     string Label,

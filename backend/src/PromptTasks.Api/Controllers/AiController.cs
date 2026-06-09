@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PromptTasks.Application.Common.Models;
 using PromptTasks.Application.Features.Ai.Commands.DeleteChatSession;
+using PromptTasks.Application.Features.Ai.Commands.GenerateMermaidDiagram;
+using PromptTasks.Application.Features.Ai.Commands.GenerateNoteMarkdown;
 using PromptTasks.Application.Features.Ai.Commands.RefinePrompt;
 using PromptTasks.Application.Features.Ai.Commands.SendChatMessage;
 using PromptTasks.Application.Features.Ai.Commands.StartChatSession;
@@ -77,6 +79,51 @@ public sealed class AiController(ISender sender) : ControllerBase
                 request.Model,
                 request.Temperature,
                 thinking),
+            cancellationToken));
+    }
+
+    [HttpPost("notes/generate")]
+    public async Task<ActionResult<GeneratedNoteDto>> GenerateNote(
+        GenerateNoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        var thinking = new GeminiThinking(
+            request.ThinkingMode ?? "none",
+            request.ThinkingBudget,
+            request.ThinkingLevel);
+
+        return Ok(await sender.Send(
+            new GenerateNoteMarkdownCommand(
+                request.Instruction,
+                request.Format,
+                request.Model,
+                request.Temperature,
+                thinking,
+                request.NotebookId,
+                request.CurrentContent),
+            cancellationToken));
+    }
+
+    [HttpPost("diagrams/mermaid/generate")]
+    public async Task<ActionResult<GeneratedMermaidDto>> GenerateMermaid(
+        GenerateMermaidRequest request,
+        CancellationToken cancellationToken)
+    {
+        var thinking = new GeminiThinking(
+            request.ThinkingMode ?? "none",
+            request.ThinkingBudget,
+            request.ThinkingLevel);
+
+        return Ok(await sender.Send(
+            new GenerateMermaidDiagramCommand(
+                request.Instruction,
+                request.DiagramKind,
+                request.Model,
+                request.Temperature,
+                thinking,
+                request.WorkingDirectoryId,
+                request.DiagramId,
+                request.CurrentCode),
             cancellationToken));
     }
 
@@ -172,6 +219,29 @@ public sealed class AiController(ISender sender) : ControllerBase
         string? ThinkingMode,
         int? ThinkingBudget,
         string? ThinkingLevel);
+
+    public sealed record GenerateNoteRequest(
+        string Instruction,
+        string? Format,
+        string Model,
+        double Temperature,
+        string? ThinkingMode,
+        int? ThinkingBudget,
+        string? ThinkingLevel,
+        Guid? NotebookId,
+        string? CurrentContent);
+
+    public sealed record GenerateMermaidRequest(
+        string Instruction,
+        string? DiagramKind,
+        string Model,
+        double Temperature,
+        string? ThinkingMode,
+        int? ThinkingBudget,
+        string? ThinkingLevel,
+        Guid? WorkingDirectoryId,
+        Guid? DiagramId,
+        string? CurrentCode);
 
     public sealed record StartSessionRequest(
         string? Title,
