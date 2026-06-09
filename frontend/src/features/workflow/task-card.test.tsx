@@ -2,8 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 import { listPromptTemplates } from '@/api/prompt-templates'
-import type { PromptTemplate, TaskSummary, Workflow, WorkflowPhase } from '@/api/schemas'
+import * as promptsApi from '@/api/prompts'
+import type { Prompt, PromptTemplate, TaskSummary, Workflow, WorkflowPhase } from '@/api/schemas'
 import * as workflowApi from '@/api/workflow'
 import { TaskCard } from './task-card'
 
@@ -31,6 +33,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/api/prompt-templates', () => ({
   listPromptTemplates: vi.fn().mockResolvedValue([]),
 }))
+
+vi.mock('@/api/prompts')
 
 vi.mock('@/api/workflow')
 
@@ -111,6 +115,35 @@ function makeTask(taskNumber: string | null, currentPhaseIteration = 1): TaskSum
     ],
     rowVersion: '0',
   }
+}
+
+function makePrompt(content: string): Prompt {
+  return {
+    id: 'prompt-1',
+    workingDirectoryId: 'workspace-1',
+    parentPromptId: null,
+    futureTaskId: null,
+    taskNumber: null,
+    title: 'Implement numbering',
+    content,
+    targetAgent: 'Codex',
+    kind: 'General',
+    status: 'Draft',
+    currentVersion: 1,
+    rowVersion: '0',
+    createdAtUtc: '2026-06-01T12:00:00Z',
+    updatedAtUtc: '2026-06-01T12:00:00Z',
+    mentions: [],
+  }
+}
+
+function stubClipboard() {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(window.navigator, 'clipboard', {
+    value: { writeText },
+    configurable: true,
+  })
+  return writeText
 }
 
 function renderCard(taskNumber: string | null, currentPhaseIteration = 1) {
@@ -503,5 +536,47 @@ describe('TaskCard', () => {
     })
 
     expect(screen.queryByRole('button', { name: /avançar para implementação/i })).not.toBeInTheDocument()
+  })
+
+  it('copies the full prompt content from the card without opening the drawer', async () => {
+    const writeText = stubClipboard()
+    vi.mocked(promptsApi.getPrompt).mockResolvedValue(makePrompt('# Conteudo completo do prompt'))
+    const onOpen = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <TaskCard task={makeTask('BP001010626')} onOpen={onOpen} />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /copiar prompt/i }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('# Conteudo completo do prompt'))
+    expect(promptsApi.getPrompt).toHaveBeenCalledWith('prompt-1')
+    expect(onOpen).not.toHaveBeenCalled()
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Prompt copiado.')
+  })
+
+  it('shows an error toast when fetching the prompt content fails', async () => {
+    const writeText = stubClipboard()
+    vi.mocked(promptsApi.getPrompt).mockRejectedValue(new Error('falhou'))
+    renderTask(makeTask(null))
+
+    fireEvent.click(screen.getByRole('button', { name: /copiar prompt/i }))
+
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled())
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it('shows an error toast when the clipboard write fails', async () => {
+    const writeText = stubClipboard()
+    writeText.mockRejectedValue(new Error('clipboard bloqueado'))
+    vi.mocked(promptsApi.getPrompt).mockResolvedValue(makePrompt('conteudo'))
+    renderTask(makeTask(null))
+
+    fireEvent.click(screen.getByRole('button', { name: /copiar prompt/i }))
+
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled())
+    expect(vi.mocked(toast.success)).not.toHaveBeenCalled()
   })
 })

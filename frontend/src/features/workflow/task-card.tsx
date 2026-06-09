@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArrowRight, CheckCircle2, FastForward, FolderGit2, Link2, Loader2, MessageSquarePlus, PlayCircle, RefreshCw, X } from 'lucide-react'
+import { Archive, ArrowRight, CheckCircle2, Copy, FastForward, FolderGit2, Link2, Loader2, MessageSquarePlus, PlayCircle, RefreshCw, X } from 'lucide-react'
 import { useState, type DragEvent } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
@@ -133,6 +133,26 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
       })
       invalidate()
     },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
+
+  // O resumo do board nao traz `content`: busca o prompt completo sob demanda,
+  // reaproveitando o cache de detalhe do React Query quando ainda fresco.
+  const copyPrompt = useMutation({
+    mutationFn: async () => {
+      const prompt = await queryClient.fetchQuery({
+        queryKey: queryKeys.prompts.detail(task.promptId),
+        queryFn: () => getPrompt(task.promptId),
+        staleTime: 15_000,
+      })
+
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Área de transferência indisponível neste navegador.')
+      }
+
+      await navigator.clipboard.writeText(prompt.content)
+    },
+    onSuccess: () => toast.success('Prompt copiado.'),
     onError: (error) => toast.error(getErrorMessage(error)),
   })
 
@@ -369,6 +389,18 @@ export function TaskCard({ task, dragging, moveDisabled, onDragStart, onDragEnd,
               {isLastPhase ? 'Concluir' : 'Avançar'}
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            onClick={() => copyPrompt.mutate()}
+            disabled={copyPrompt.isPending}
+            title="Copiar prompt"
+            aria-label="Copiar prompt"
+          >
+            {copyPrompt.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+          </Button>
           <Button
             type="button"
             variant="ghost"
