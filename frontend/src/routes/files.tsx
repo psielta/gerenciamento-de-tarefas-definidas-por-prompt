@@ -1,10 +1,14 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { Maximize2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { queryKeys } from '@/api/query-keys'
 import { listWorkingDirectories } from '@/api/working-directories'
+import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
+import { ExpandedFileExplorer } from '@/features/files/expanded-file-explorer'
 import { FileExplorer } from '@/features/files/file-explorer'
+import { readLastOpenedFile, writeLastOpenedFile } from '@/features/files/last-opened-file'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 
 const SELECTED_WORKSPACE_KEY = 'prompt-tasks-files-workspace'
@@ -20,6 +24,10 @@ function FilesPage() {
   })
   const workspaces = workspacesQuery.data ?? []
   const [storedId, setStoredId] = useLocalStorage(SELECTED_WORKSPACE_KEY, '')
+  const [expanded, setExpanded] = useState(false)
+  // Selecao por workspace: quando o par nao corresponde ao workspace atual,
+  // cai no ultimo arquivo aberto persistido, sem precisar de efeito.
+  const [selection, setSelection] = useState<{ workspaceId: string; path: string | null } | null>(null)
 
   // Use the stored workspace if it still exists, otherwise fall back to the first.
   const selectedId = workspaces.some((workspace) => workspace.id === storedId)
@@ -33,6 +41,22 @@ function FilesPage() {
     }
   }, [selectedId, storedId, setStoredId])
 
+  const selectedPath =
+    selection && selection.workspaceId === selectedId
+      ? selection.path
+      : selectedId
+        ? readLastOpenedFile(selectedId)
+        : null
+
+  const handleSelectFile = (relativePath: string) => {
+    if (!selectedId) {
+      return
+    }
+
+    setSelection({ workspaceId: selectedId, path: relativePath })
+    writeLastOpenedFile(selectedId, relativePath)
+  }
+
   const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedId)
 
   return (
@@ -44,23 +68,36 @@ function FilesPage() {
             {selectedWorkspace?.absolutePath ?? 'Escolha um diretorio de trabalho para navegar nos arquivos.'}
           </p>
         </div>
-        <div className="sm:w-72">
-          <Select
-            value={selectedId}
-            onChange={(event) => setStoredId(event.target.value)}
-            disabled={!workspaces.length}
-            aria-label="Selecionar diretorio de trabalho"
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="w-full sm:w-72">
+            <Select
+              value={selectedId}
+              onChange={(event) => setStoredId(event.target.value)}
+              disabled={!workspaces.length}
+              aria-label="Selecionar diretorio de trabalho"
+            >
+              {workspaces.length ? (
+                workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">Nenhum diretorio</option>
+              )}
+            </Select>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={() => setExpanded(true)}
+            disabled={!selectedId}
+            title="Modo expandido"
+            aria-label="Entrar no modo expandido"
           >
-            {workspaces.length ? (
-              workspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))
-            ) : (
-              <option value="">Nenhum diretorio</option>
-            )}
-          </Select>
+            <Maximize2 className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
@@ -79,8 +116,25 @@ function FilesPage() {
         </div>
       ) : null}
 
-      {selectedId ? (
-        <FileExplorer key={selectedId} workingDirectoryId={selectedId} className="min-h-0 flex-1" />
+      {selectedId && !expanded ? (
+        <FileExplorer
+          key={selectedId}
+          workingDirectoryId={selectedId}
+          selectedPath={selectedPath}
+          onSelectFile={handleSelectFile}
+          className="min-h-0 flex-1"
+        />
+      ) : null}
+
+      {selectedId && expanded ? (
+        <ExpandedFileExplorer
+          workingDirectoryId={selectedId}
+          workspaces={workspaces}
+          onChangeWorkspace={setStoredId}
+          selectedPath={selectedPath}
+          onSelectFile={handleSelectFile}
+          onExit={() => setExpanded(false)}
+        />
       ) : null}
     </div>
   )

@@ -6,6 +6,13 @@ import { WorkspaceFileTree } from './workspace-file-tree'
 type FileExplorerProps = {
   workingDirectoryId: string
   className?: string
+  /**
+   * Quando informados, a selecao passa a ser controlada pelo componente pai
+   * (usado pela rota /files para preservar o arquivo aberto entre os modos
+   * normal e expandido). Sem eles, o estado continua interno.
+   */
+  selectedPath?: string | null
+  onSelectFile?: (relativePath: string) => void
 }
 
 /**
@@ -13,22 +20,32 @@ type FileExplorerProps = {
  * (via `className`) so the Monaco editor scrolls internally instead of growing.
  * Remount with a `key` to reset the selected file when switching workspaces.
  */
-export function FileExplorer({ workingDirectoryId, className }: FileExplorerProps) {
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+export function FileExplorer({ workingDirectoryId, className, selectedPath, onSelectFile }: FileExplorerProps) {
+  const [internalPath, setInternalPath] = useState<string | null>(null)
+  const isControlled = selectedPath !== undefined
+  const activePath = isControlled ? selectedPath : internalPath
+
+  const handleSelectFile = (relativePath: string) => {
+    if (!isControlled) {
+      setInternalPath(relativePath)
+    }
+
+    onSelectFile?.(relativePath)
+  }
 
   return (
     <div className={cn('grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-1', className)}>
       <WorkspaceFileTree
         workingDirectoryId={workingDirectoryId}
-        selectedPath={selectedPath}
-        onSelectFile={setSelectedPath}
+        selectedPath={activePath}
+        onSelectFile={handleSelectFile}
         className="min-h-[24rem] lg:min-h-0"
       />
 
-      {selectedPath ? (
+      {activePath ? (
         <FileViewerPanel
           workingDirectoryId={workingDirectoryId}
-          relativePath={selectedPath}
+          relativePath={activePath}
           inline
           className="min-h-[24rem] lg:min-h-0"
         />

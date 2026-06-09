@@ -1,5 +1,6 @@
-import { AlertTriangle, FileCode2, Loader2 } from 'lucide-react'
+import { AlertTriangle, Copy, FileCode2, Loader2 } from 'lucide-react'
 import { lazy, Suspense, useMemo } from 'react'
+import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
 import { useTheme } from '@/components/theme/theme-provider'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,19 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
 
   const fileName = relativePath.split('/').pop() || relativePath
 
+  const copyRelativePath = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Área de transferência indisponível neste navegador.')
+      }
+
+      await navigator.clipboard.writeText(relativePath)
+      toast.success('Caminho relativo copiado.')
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
   return (
     <section
       className={cn(
@@ -50,11 +64,22 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
             {!inline ? <p className="truncate text-xs text-muted-foreground">{relativePath}</p> : null}
           </div>
         </div>
-        {contentQuery.data ? (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {byteFormatter.format(contentQuery.data.sizeBytes)} bytes
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {contentQuery.data ? (
+            <span className="text-xs text-muted-foreground">
+              {byteFormatter.format(contentQuery.data.sizeBytes)} bytes
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void copyRelativePath()}
+            title="Copiar caminho relativo"
+            aria-label="Copiar caminho relativo"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 overflow-hidden">

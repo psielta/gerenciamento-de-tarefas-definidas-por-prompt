@@ -1,6 +1,6 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, FileText, Folder, Loader2, RefreshCw, Search } from 'lucide-react'
-import type { DragEvent } from 'react'
+import type { CSSProperties, DragEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { queryKeys } from '@/api/query-keys'
 import type { FileSearchResult, FileTreeNode } from '@/api/schemas'
@@ -16,6 +16,7 @@ type WorkspaceFileTreeProps = {
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
   className?: string
+  style?: CSSProperties
 }
 
 export function WorkspaceFileTree({
@@ -24,6 +25,7 @@ export function WorkspaceFileTree({
   onSelectFile,
   onOpenFile,
   className,
+  style,
 }: WorkspaceFileTreeProps) {
   const queryClient = useQueryClient()
   const rootQuery = useDirectoryChildren(workingDirectoryId, '')
@@ -60,6 +62,7 @@ export function WorkspaceFileTree({
         'grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-card',
         className,
       )}
+      style={style}
     >
       <div className="grid gap-2 border-b border-border px-3 py-2">
         <div className="flex items-center justify-between gap-2">
