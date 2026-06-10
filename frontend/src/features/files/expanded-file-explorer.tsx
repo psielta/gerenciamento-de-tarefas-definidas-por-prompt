@@ -4,6 +4,7 @@ import type { WorkingDirectory } from '@/api/schemas'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { useLocalStorage } from '@/hooks/use-local-storage'
+import { cn } from '@/lib/utils'
 import { FileSearchPalette } from './file-search-palette'
 import { FileViewerPanel } from './file-viewer-panel'
 import { WorkspaceFileTree } from './workspace-file-tree'
@@ -28,6 +29,8 @@ type ExpandedFileExplorerProps = {
   selectedPath: string | null
   onSelectFile: (relativePath: string) => void
   onExit: () => void
+  /** Permite ajustar o overlay (ex.: z-index acima do drawer de visualizacao). */
+  className?: string
 }
 
 /**
@@ -42,6 +45,7 @@ export function ExpandedFileExplorer({
   selectedPath,
   onSelectFile,
   onExit,
+  className,
 }: ExpandedFileExplorerProps) {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [treeVisible, setTreeVisible] = useState(true)
@@ -105,7 +109,7 @@ export function ExpandedFileExplorer({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid grid-rows-[auto_minmax(0,1fr)] bg-background"
+      className={cn('fixed inset-0 z-50 grid grid-rows-[auto_minmax(0,1fr)] bg-background', className)}
       role="dialog"
       aria-modal="true"
       aria-label="Navegacao expandida de arquivos"

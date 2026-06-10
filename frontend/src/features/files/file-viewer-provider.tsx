@@ -35,6 +35,7 @@ export function FileViewerProvider({ children }: { children: React.ReactNode }) 
           workingDirectoryId={target.workingDirectoryId}
           relativePath={target.relativePath}
           onClose={closeFile}
+          onSelectFile={openFile}
         />
       ) : null}
     </FileViewerContext.Provider>

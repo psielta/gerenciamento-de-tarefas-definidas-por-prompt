@@ -1,14 +1,20 @@
-import { X } from 'lucide-react'
+import { Maximize2, X } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ExpandedFileOverlay } from './expanded-file-overlay'
 import { FileViewerPanel } from './file-viewer-panel'
 
 type FileViewerDrawerProps = {
   workingDirectoryId: string
   relativePath: string
   onClose: () => void
+  /** Atualiza o arquivo exibido no drawer conforme a navegacao no modo expandido. */
+  onSelectFile?: (workingDirectoryId: string, relativePath: string) => void
 }
 
-export function FileViewerDrawer({ workingDirectoryId, relativePath, onClose }: FileViewerDrawerProps) {
+export function FileViewerDrawer({ workingDirectoryId, relativePath, onClose, onSelectFile }: FileViewerDrawerProps) {
+  const [expanded, setExpanded] = useState(false)
+
   return (
     <div
       className="fixed inset-0 z-[60] flex justify-end bg-black/50 backdrop-blur-sm"
@@ -27,17 +33,30 @@ export function FileViewerDrawer({ workingDirectoryId, relativePath, onClose }: 
             Visualizar arquivo
           </h2>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground"
-            onClick={onClose}
-            aria-label="Fechar"
-            title="Fechar"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground"
+              onClick={() => setExpanded(true)}
+              aria-label="Abrir no modo expandido"
+              title="Modo expandido"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground"
+              onClick={onClose}
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="min-h-0 overflow-hidden p-3">
@@ -48,6 +67,16 @@ export function FileViewerDrawer({ workingDirectoryId, relativePath, onClose }: 
           />
         </div>
       </div>
+
+      {expanded ? (
+        <ExpandedFileOverlay
+          workingDirectoryId={workingDirectoryId}
+          initialPath={relativePath}
+          onSelectFile={onSelectFile}
+          onExit={() => setExpanded(false)}
+          className="z-[70]"
+        />
+      ) : null}
     </div>
   )
 }
