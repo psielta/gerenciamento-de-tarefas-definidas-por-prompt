@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Bot, Languages, Loader2, Save, Sparkles, Trash2 } from 'lucide-react'
+import { Bot, Copy, Languages, Loader2, Save, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -37,6 +37,11 @@ type PromptFormProps = {
   showWorkspaceFileTree?: boolean
   initialTitle?: string
   initialContent?: string
+}
+
+type CreatePromptFormPayload = {
+  values: PromptFormValues
+  copyAfterCreate: boolean
 }
 
 export function PromptForm({
@@ -131,13 +136,32 @@ export function PromptForm({
   }
 
   const createMutation = useMutation({
-    mutationFn: createPrompt,
-    onSuccess: async (prompt) => {
+    mutationFn: ({ values }: CreatePromptFormPayload) =>
+      createPrompt({
+        workingDirectoryId,
+        futureTaskId: futureTaskId || undefined,
+        ...values,
+        mentions,
+      }),
+    onSuccess: async (prompt, payload) => {
       await afterSave(prompt)
       if (futureTaskId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.futureTasks.all })
       }
-      toast.success('Prompt criado.')
+      if (payload.copyAfterCreate) {
+        try {
+          if (!navigator.clipboard?.writeText) {
+            throw new Error('Clipboard indisponivel.')
+          }
+
+          await navigator.clipboard.writeText(payload.values.content)
+          toast.success('Prompt criado e copiado.')
+        } catch {
+          toast.warning('Prompt criado, mas nao foi possivel copiar.')
+        }
+      } else {
+        toast.success('Prompt criado.')
+      }
       if (onCreated) {
         onCreated(prompt)
         return
@@ -197,19 +221,25 @@ export function PromptForm({
     await queryClient.invalidateQueries({ queryKey: queryKeys.workflow.all })
   }
 
+  const createPromptFromForm = (values: PromptFormValues, copyAfterCreate: boolean) => {
+    createMutation.mutate({
+      values,
+      copyAfterCreate,
+    })
+  }
+
   const onSubmit = form.handleSubmit((values) => {
     if (promptId) {
       updateMutation.mutate(values)
       return
     }
 
-    createMutation.mutate({
-      workingDirectoryId,
-      futureTaskId: futureTaskId || undefined,
-      ...values,
-      mentions,
-    })
+    createPromptFromForm(values, false)
   })
+
+  const onSubmitAndCopy = () => {
+    void form.handleSubmit((values) => createPromptFromForm(values, true))()
+  }
 
   const isBusy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
@@ -391,6 +421,18 @@ export function PromptForm({
               >
                 <Trash2 className="h-4 w-4" />
                 Remover
+              </Button>
+            ) : null}
+            {!promptId ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onSubmitAndCopy}
+                disabled={isBusy}
+                title="Salvar e copiar para area de transferencia"
+              >
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                Salvar e copiar
               </Button>
             ) : null}
             <Button type="submit" disabled={isBusy}>

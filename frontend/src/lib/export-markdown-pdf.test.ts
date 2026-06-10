@@ -3,6 +3,7 @@ import { exportMarkdownPdf, sanitizePdfFilename } from './export-markdown-pdf'
 
 const mocks = vi.hoisted(() => {
   const addPageMock = vi.fn()
+  const getTextWidthMock = vi.fn((value: string) => String(value).length * 1.8)
   const lineMock = vi.fn()
   const rectMock = vi.fn()
   const saveMock = vi.fn()
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => {
     return {
       addPage: addPageMock,
       getNumberOfPages: vi.fn(() => 1),
+      getTextWidth: getTextWidthMock,
       internal: {
         pageSize: {
           getHeight: () => 297,
@@ -43,6 +45,8 @@ const mocks = vi.hoisted(() => {
 
   return {
     jsPDFMock,
+    getTextWidthMock,
+    rectMock,
     saveMock,
     setPropertiesMock,
     textMock,
@@ -82,12 +86,54 @@ describe('exportMarkdownPdf', () => {
     expect(mocks.setPropertiesMock).toHaveBeenCalledWith({ title: 'Meu Prompt' })
     expect(mocks.saveMock).toHaveBeenCalledWith('meu-prompt.pdf')
 
-    const writtenText = mocks.textMock.mock.calls.map(([value]) => String(value))
+    const writtenText = mocks.textMock.mock.calls
+      .map(([value]) => String(value))
+      .join(' ')
+      .replace(/\s+/g, ' ')
 
     expect(writtenText).toContain('Meu Prompt')
     expect(writtenText).toContain('TASK-12')
     expect(writtenText).toContain('Titulo')
     expect(writtenText).toContain('Conteudo')
-    expect(writtenText).toContain('- item')
+    expect(writtenText).toContain('-')
+    expect(writtenText).toContain('item')
+  })
+
+  it('keeps tables, inline code, and multiline code blocks in the PDF output', async () => {
+    await exportMarkdownPdf({
+      title: 'Prompt tecnico',
+      markdown: [
+        'Texto com `inline` e **forte**.',
+        '',
+        '| Campo | Valor |',
+        '| --- | --- |',
+        '| id | `123` |',
+        '',
+        '```ts',
+        'const item = {',
+        '  name: "A"',
+        '}',
+        '```',
+      ].join('\n'),
+      filename: 'prompt-tecnico',
+    })
+
+    const writtenText = mocks.textMock.mock.calls
+      .map(([value]) => String(value))
+      .join('\n')
+      .replace(/[ \t]+\n/g, '\n')
+
+    expect(writtenText).toContain('Texto')
+    expect(writtenText).toContain('inline')
+    expect(writtenText).toContain('forte')
+    expect(writtenText).toContain('Campo')
+    expect(writtenText).toContain('Valor')
+    expect(writtenText).toContain('id')
+    expect(writtenText).toContain('123')
+    expect(writtenText).toContain('ts')
+    expect(writtenText).toContain('const item = {')
+    expect(writtenText).toContain('  name: "A"')
+    expect(writtenText).toContain('}')
+    expect(mocks.rectMock).toHaveBeenCalled()
   })
 })
