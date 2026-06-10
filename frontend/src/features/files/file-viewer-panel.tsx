@@ -22,6 +22,7 @@ import { createFileKey } from './file-key'
 import { extensionToLanguage } from './extension-to-language'
 import { getGitLineChanges, type GitLineChange, type GitLineChangeKind } from './git-line-changes'
 import { MarkdownFilePreview } from './markdown-file-preview'
+import { resolveMonacoTheme } from './monaco-setup'
 import { useFileContent } from './use-file-queries'
 import { useFileSubscription } from './use-file-subscription'
 import { useGitOriginalFile, useGitStatus } from './use-git-queries'
@@ -397,7 +398,7 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
               <MonacoEditor
                 value={contentQuery.data.content}
                 language={language}
-                theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs'}
+                theme={resolveMonacoTheme(resolvedTheme)}
                 onMount={handleEditorMount}
                 options={{
                   readOnly: true,

@@ -10,6 +10,8 @@ import { useFileContent } from './use-file-queries'
 import { useFileSubscription } from './use-file-subscription'
 import { useGitOriginalFile } from './use-git-queries'
 
+import { resolveMonacoTheme } from './monaco-setup'
+
 const MonacoDiffEditor = lazy(async () => {
   await import('./monaco-setup')
   const { DiffEditor } = await import('@monaco-editor/react')
@@ -104,7 +106,7 @@ export function GitDiffViewer({ workingDirectoryId, path, originalPath, status, 
               original={originalContent}
               modified={currentContent}
               language={language}
-              theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs'}
+              theme={resolveMonacoTheme(resolvedTheme)}
               height="100%"
               options={{
                 readOnly: true,
