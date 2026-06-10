@@ -191,6 +191,57 @@ body {
   animation: caret-blink 1.1s infinite;
 }
 
+.git-line-change-background-added {
+  background: rgba(46, 160, 67, 0.1);
+}
+
+.git-line-change-background-modified {
+  background: rgba(210, 153, 34, 0.1);
+}
+
+.git-line-change-background-deleted {
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.git-line-change-gutter {
+  width: 3px !important;
+  margin-left: 4px;
+}
+
+.git-line-change-gutter-added {
+  background: #2ea043;
+}
+
+.git-line-change-gutter-modified {
+  background: #d29922;
+}
+
+.git-line-change-gutter-deleted {
+  background: #f85149;
+}
+
+.git-line-change-glyph::before {
+  display: block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin: 0.42rem auto 0;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.git-line-change-glyph-added {
+  color: #2ea043;
+}
+
+.git-line-change-glyph-modified {
+  color: #d29922;
+}
+
+.git-line-change-glyph-deleted {
+  color: #f85149;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-caret {
     animation: none;

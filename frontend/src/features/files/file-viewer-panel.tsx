@@ -11,16 +11,20 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { lazy, Suspense, useMemo } from 'react'
+import type { editor } from 'monaco-editor'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
 import { useTheme } from '@/components/theme/theme-provider'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
+import { createFileKey } from './file-key'
 import { extensionToLanguage } from './extension-to-language'
+import { getGitLineChanges, type GitLineChange, type GitLineChangeKind } from './git-line-changes'
 import { MarkdownFilePreview } from './markdown-file-preview'
 import { useFileContent } from './use-file-queries'
 import { useFileSubscription } from './use-file-subscription'
+import { useGitOriginalFile, useGitStatus } from './use-git-queries'
 
 const MonacoEditor = lazy(async () => {
   await import('./monaco-setup')
@@ -33,6 +37,10 @@ type FileViewerPanelProps = {
   className?: string
   inline?: boolean
 }
+
+type MonacoNamespace = typeof import('monaco-editor')
+type MonacoEditorInstance = editor.IStandaloneCodeEditor
+type MonacoDecorationCollection = ReturnType<MonacoEditorInstance['createDecorationsCollection']>
 
 const byteFormatter = new Intl.NumberFormat('pt-BR')
 
@@ -47,6 +55,16 @@ const MARKDOWN_OUTLINE_STORAGE_KEY = 'prompt-tasks:files:markdown-outline'
 const FONT_SIZE_DEFAULT = 13
 const FONT_SIZE_MIN = 10
 const FONT_SIZE_MAX = 28
+const GIT_DECORATION_COLORS: Record<GitLineChangeKind, string> = {
+  added: '#2ea043',
+  modified: '#d29922',
+  deleted: '#f85149',
+}
+const GIT_DECORATION_LABELS: Record<GitLineChangeKind, string> = {
+  added: 'Linha adicionada no Git',
+  modified: 'Linha modificada no Git',
+  deleted: 'Linha removida no Git',
+}
 
 function clampFontSize(size: number) {
   if (Number.isNaN(size)) {
@@ -82,10 +100,38 @@ function ToolbarIconButton({ onClick, title, ariaLabel, active, children }: Tool
   )
 }
 
+function toMonacoGitDecoration(change: GitLineChange, monaco: MonacoNamespace): editor.IModelDeltaDecoration {
+  const startLineNumber = Math.max(1, change.startLineNumber)
+  const endLineNumber = Math.max(startLineNumber, change.endLineNumber)
+  const color = GIT_DECORATION_COLORS[change.kind]
+
+  return {
+    range: new monaco.Range(startLineNumber, 1, endLineNumber, 1),
+    options: {
+      isWholeLine: true,
+      className: `git-line-change-background git-line-change-background-${change.kind}`,
+      linesDecorationsClassName: `git-line-change-gutter git-line-change-gutter-${change.kind}`,
+      glyphMarginClassName: `git-line-change-glyph git-line-change-glyph-${change.kind}`,
+      hoverMessage: { value: GIT_DECORATION_LABELS[change.kind] },
+      overviewRuler: {
+        color,
+        position: monaco.editor.OverviewRulerLane.Left,
+      },
+      minimap: {
+        color,
+        position: monaco.editor.MinimapPosition.Gutter,
+      },
+    },
+  }
+}
+
 export function FileViewerPanel({ workingDirectoryId, relativePath, className, inline = false }: FileViewerPanelProps) {
   const contentQuery = useFileContent(workingDirectoryId, relativePath)
   useFileSubscription(workingDirectoryId, relativePath)
+  const gitStatusQuery = useGitStatus(workingDirectoryId)
   const { resolvedTheme } = useTheme()
+  const monacoRef = useRef<MonacoNamespace | null>(null)
+  const decorationsRef = useRef<MonacoDecorationCollection | null>(null)
 
   const [storedFontSize, setStoredFontSize] = useLocalStorage(FONT_SIZE_STORAGE_KEY, String(FONT_SIZE_DEFAULT))
   const [minimapPref, setMinimapPref] = useLocalStorage(MINIMAP_STORAGE_KEY, 'on')
@@ -107,6 +153,71 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
   const isMarkdown = language === 'markdown'
   const hasTextContent = Boolean(contentQuery.data && !contentQuery.data.isBinary)
   const showMarkdownPreview = isMarkdown && hasTextContent && markdownViewPref === 'preview'
+  const gitStatus = useMemo(() => {
+    const fileKey = createFileKey(relativePath)
+    return gitStatusQuery.data?.find((entry) => createFileKey(entry.path) === fileKey)
+  }, [gitStatusQuery.data, relativePath])
+  const shouldCompareWithOriginal = Boolean(
+    gitStatus &&
+      gitStatus.status !== 'Added' &&
+      gitStatus.status !== 'Deleted' &&
+      gitStatus.status !== 'Untracked' &&
+      contentQuery.data &&
+      !contentQuery.data.isBinary &&
+      !contentQuery.data.truncated &&
+      !showMarkdownPreview,
+  )
+  const originalGitFileQuery = useGitOriginalFile(
+    workingDirectoryId,
+    gitStatus?.originalPath ?? relativePath,
+    shouldCompareWithOriginal,
+  )
+  const gitLineChanges = useMemo(() => {
+    if (!gitStatus || !contentQuery.data || contentQuery.data.isBinary || contentQuery.data.truncated) {
+      return []
+    }
+
+    if (gitStatus.status === 'Added' || gitStatus.status === 'Untracked') {
+      return getGitLineChanges('', contentQuery.data.content)
+    }
+
+    if (gitStatus.status === 'Deleted' || !originalGitFileQuery.data) {
+      return []
+    }
+
+    return getGitLineChanges(originalGitFileQuery.data.content, contentQuery.data.content)
+  }, [contentQuery.data, gitStatus, originalGitFileQuery.data])
+  const applyGitDecorations = useCallback((changes: GitLineChange[]) => {
+    const decorations = decorationsRef.current
+    const monaco = monacoRef.current
+
+    if (!decorations || !monaco) {
+      return
+    }
+
+    decorations.set(changes.map((change) => toMonacoGitDecoration(change, monaco)))
+  }, [])
+  const handleEditorMount = useCallback(
+    (editorInstance: MonacoEditorInstance, monaco: MonacoNamespace) => {
+      decorationsRef.current?.clear()
+      monacoRef.current = monaco
+      decorationsRef.current = editorInstance.createDecorationsCollection()
+      applyGitDecorations(gitLineChanges)
+    },
+    [applyGitDecorations, gitLineChanges],
+  )
+
+  useEffect(() => {
+    applyGitDecorations(gitLineChanges)
+  }, [applyGitDecorations, gitLineChanges])
+
+  useEffect(() => {
+    return () => {
+      decorationsRef.current?.clear()
+      decorationsRef.current = null
+      monacoRef.current = null
+    }
+  }, [])
 
   const copyRelativePath = async () => {
     try {
@@ -287,9 +398,11 @@ export function FileViewerPanel({ workingDirectoryId, relativePath, className, i
                 value={contentQuery.data.content}
                 language={language}
                 theme={resolvedTheme === 'dark' ? 'vs-dark' : 'vs'}
+                onMount={handleEditorMount}
                 options={{
                   readOnly: true,
                   domReadOnly: true,
+                  glyphMargin: true,
                   minimap: { enabled: minimapEnabled },
                   scrollBeyondLastLine: false,
                   fontFamily: 'JetBrains Mono Variable, ui-monospace, monospace',

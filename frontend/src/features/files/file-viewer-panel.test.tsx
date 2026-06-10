@@ -1,11 +1,36 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as filesApi from '@/api/files'
+import * as gitApi from '@/api/git'
 import { FileViewerPanel } from './file-viewer-panel'
 
+const monacoMocks = vi.hoisted(() => {
+  const decorationsSet = vi.fn()
+  const decorationsClear = vi.fn()
+  const createDecorationsCollection = vi.fn(() => ({
+    set: decorationsSet,
+    clear: decorationsClear,
+  }))
+  const Range = vi.fn(function Range(
+    this: { startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number },
+    startLineNumber: number,
+    startColumn: number,
+    endLineNumber: number,
+    endColumn: number,
+  ) {
+    this.startLineNumber = startLineNumber
+    this.startColumn = startColumn
+    this.endLineNumber = endLineNumber
+    this.endColumn = endColumn
+  })
+
+  return { decorationsSet, decorationsClear, createDecorationsCollection, Range }
+})
+
 vi.mock('@/api/files')
+vi.mock('@/api/git')
 vi.mock('./use-file-subscription', () => ({
   useFileSubscription: () => {},
 }))
@@ -16,20 +41,37 @@ vi.mock('./monaco-setup', () => ({}))
 
 type MonacoMockProps = {
   value: string
-  options: { fontSize: number; minimap: { enabled: boolean }; wordWrap: string }
+  options: { fontSize: number; minimap: { enabled: boolean }; wordWrap: string; glyphMargin?: boolean }
+  onMount?: (editor: unknown, monaco: unknown) => void
 }
 
 vi.mock('@monaco-editor/react', () => ({
-  default: ({ value, options }: MonacoMockProps) => (
-    <div
-      data-testid="monaco-editor"
-      data-font-size={String(options.fontSize)}
-      data-minimap={String(options.minimap.enabled)}
-      data-word-wrap={options.wordWrap}
-    >
-      {value}
-    </div>
-  ),
+  default: ({ value, options, onMount }: MonacoMockProps) => {
+    onMount?.(
+      {
+        createDecorationsCollection: monacoMocks.createDecorationsCollection,
+      },
+      {
+        Range: monacoMocks.Range,
+        editor: {
+          OverviewRulerLane: { Left: 1 },
+          MinimapPosition: { Gutter: 1 },
+        },
+      },
+    )
+
+    return (
+      <div
+        data-testid="monaco-editor"
+        data-font-size={String(options.fontSize)}
+        data-minimap={String(options.minimap.enabled)}
+        data-word-wrap={options.wordWrap}
+        data-glyph-margin={String(options.glyphMargin ?? false)}
+      >
+        {value}
+      </div>
+    )
+  },
 }))
 
 function renderPanel(relativePath: string) {
@@ -48,6 +90,8 @@ describe('FileViewerPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    vi.mocked(gitApi.getGitStatus).mockResolvedValue([])
+    vi.mocked(gitApi.getGitOriginalFile).mockResolvedValue({ content: '' })
     vi.mocked(filesApi.getFileContent).mockImplementation(async (_workingDirectoryId, relativePath) => ({
       relativePath,
       content: relativePath.endsWith('.md')
@@ -68,6 +112,7 @@ describe('FileViewerPanel', () => {
 
     expect(await screen.findByTestId('monaco-editor')).toHaveTextContent('const total = 1')
     expect(screen.queryByRole('group', { name: 'Modo de visualizacao do markdown' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('monaco-editor')).toHaveAttribute('data-glyph-margin', 'true')
   })
 
   it('toggles a markdown file between code and rendered preview', async () => {
@@ -132,5 +177,67 @@ describe('FileViewerPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Alternar quebra de linha' }))
     expect(screen.getByTestId('monaco-editor')).toHaveAttribute('data-word-wrap', 'off')
+  })
+
+  it('adds git line decorations for modified files opened in the regular editor', async () => {
+    vi.mocked(gitApi.getGitStatus).mockResolvedValue([{ path: 'src/app.ts', status: 'Modified', originalPath: null }])
+    vi.mocked(gitApi.getGitOriginalFile).mockResolvedValue({
+      content: 'const total = 1\nconst enabled = true',
+    })
+    vi.mocked(filesApi.getFileContent).mockResolvedValue({
+      relativePath: 'src/app.ts',
+      content: 'const total = 2\nconst enabled = true',
+      sizeBytes: 42,
+      truncated: false,
+      isBinary: false,
+    })
+
+    renderPanel('src/app.ts')
+    await screen.findByTestId('monaco-editor')
+
+    await waitFor(() => {
+      const decorations = monacoMocks.decorationsSet.mock.calls.at(-1)?.[0] ?? []
+      expect(decorations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            range: expect.objectContaining({ startLineNumber: 1, endLineNumber: 1 }),
+            options: expect.objectContaining({
+              className: expect.stringContaining('git-line-change-background-modified'),
+              glyphMarginClassName: expect.stringContaining('git-line-change-glyph-modified'),
+            }),
+          }),
+        ]),
+      )
+    })
+    expect(gitApi.getGitOriginalFile).toHaveBeenCalledWith('ws-1', 'src/app.ts')
+  })
+
+  it('marks untracked files as added without fetching original content', async () => {
+    vi.mocked(gitApi.getGitStatus).mockResolvedValue([{ path: 'src/new-file.ts', status: 'Untracked' }])
+    vi.mocked(filesApi.getFileContent).mockResolvedValue({
+      relativePath: 'src/new-file.ts',
+      content: 'const created = true\nexport { created }',
+      sizeBytes: 48,
+      truncated: false,
+      isBinary: false,
+    })
+
+    renderPanel('src/new-file.ts')
+    await screen.findByTestId('monaco-editor')
+
+    await waitFor(() => {
+      const decorations = monacoMocks.decorationsSet.mock.calls.at(-1)?.[0] ?? []
+      expect(decorations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            range: expect.objectContaining({ startLineNumber: 1, endLineNumber: 2 }),
+            options: expect.objectContaining({
+              className: expect.stringContaining('git-line-change-background-added'),
+            }),
+          }),
+        ]),
+      )
+    })
+    expect(gitApi.getGitOriginalFile).not.toHaveBeenCalled()
   })
 })
