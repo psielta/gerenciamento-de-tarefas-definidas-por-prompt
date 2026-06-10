@@ -3,10 +3,12 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as filesApi from '@/api/files'
+import * as gitApi from '@/api/git'
 import type { WorkingDirectory } from '@/api/schemas'
 import { ExpandedFileExplorer } from './expanded-file-explorer'
 
 vi.mock('@/api/files')
+vi.mock('@/api/git')
 
 const workspace: WorkingDirectory = {
   id: 'ws-1',
@@ -49,6 +51,7 @@ describe('ExpandedFileExplorer', () => {
       { name: 'README.md', relativePath: 'README.md', isDirectory: false },
     ])
     vi.mocked(filesApi.searchFiles).mockResolvedValue([])
+    vi.mocked(gitApi.getGitStatus).mockResolvedValue([])
   })
 
   afterEach(() => {

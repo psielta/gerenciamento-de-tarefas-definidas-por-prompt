@@ -1,12 +1,13 @@
 import { FileCode2, Minimize2, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { WorkingDirectory } from '@/api/schemas'
+import type { GitFileStatus, WorkingDirectory } from '@/api/schemas'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
 import { FileSearchPalette } from './file-search-palette'
 import { FileViewerPanel } from './file-viewer-panel'
+import { GitDiffViewer } from './git-diff-viewer'
 import { WorkspaceFileTree } from './workspace-file-tree'
 
 const TREE_WIDTH_STORAGE_KEY = 'prompt-tasks:files:tree-width'
@@ -49,11 +50,17 @@ export function ExpandedFileExplorer({
 }: ExpandedFileExplorerProps) {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [treeVisible, setTreeVisible] = useState(true)
+  const [diffSelection, setDiffSelection] = useState<{
+    workingDirectoryId: string
+    entry: GitFileStatus
+  } | null>(null)
   const [storedTreeWidth, setStoredTreeWidth] = useLocalStorage(
     TREE_WIDTH_STORAGE_KEY,
     String(TREE_DEFAULT_WIDTH),
   )
   const [treeWidth, setTreeWidth] = useState(() => clampTreeWidth(Number.parseInt(storedTreeWidth, 10)))
+  const activeDiffSelection =
+    diffSelection?.workingDirectoryId === workingDirectoryId ? diffSelection.entry : null
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -85,6 +92,15 @@ export function ExpandedFileExplorer({
       document.body.style.overflow = previousOverflow
     }
   }, [])
+
+  const handleSelectFile = (relativePath: string) => {
+    setDiffSelection(null)
+    onSelectFile(relativePath)
+  }
+
+  const handleSelectGitChange = (entry: GitFileStatus) => {
+    setDiffSelection({ workingDirectoryId, entry })
+  }
 
   const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -177,7 +193,9 @@ export function ExpandedFileExplorer({
               key={workingDirectoryId}
               workingDirectoryId={workingDirectoryId}
               selectedPath={selectedPath}
-              onSelectFile={onSelectFile}
+              selectedGitPath={activeDiffSelection?.path}
+              onSelectFile={handleSelectFile}
+              onSelectGitChange={handleSelectGitChange}
               className="h-full shrink-0"
               style={{ width: treeWidth }}
             />
@@ -191,7 +209,15 @@ export function ExpandedFileExplorer({
           </>
         ) : null}
 
-        {selectedPath ? (
+        {activeDiffSelection ? (
+          <GitDiffViewer
+            workingDirectoryId={workingDirectoryId}
+            path={activeDiffSelection.path}
+            originalPath={activeDiffSelection.originalPath}
+            status={activeDiffSelection.status}
+            className="min-w-0 flex-1"
+          />
+        ) : selectedPath ? (
           <FileViewerPanel
             workingDirectoryId={workingDirectoryId}
             relativePath={selectedPath}
@@ -212,7 +238,7 @@ export function ExpandedFileExplorer({
       {paletteOpen ? (
         <FileSearchPalette
           workingDirectoryId={workingDirectoryId}
-          onSelectFile={onSelectFile}
+          onSelectFile={handleSelectFile}
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}

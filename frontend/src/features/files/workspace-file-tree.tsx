@@ -1,9 +1,9 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, FileText, Folder, Loader2, RefreshCw, Search } from 'lucide-react'
+import { ChevronRight, FileText, Folder, GitBranch, Loader2, RefreshCw, Search } from 'lucide-react'
 import type { CSSProperties, DragEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { queryKeys } from '@/api/query-keys'
-import type { FileSearchResult, FileTreeNode, GitFileStatusValue } from '@/api/schemas'
+import type { FileSearchResult, FileTreeNode, GitFileStatus, GitFileStatusValue } from '@/api/schemas'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { cn } from '@/lib/utils'
 import { createFileKey, parentDirectoryPath } from './file-key'
@@ -16,8 +16,10 @@ export const WORKSPACE_FILE_MIME = 'application/x-workspace-file'
 type WorkspaceFileTreeProps = {
   workingDirectoryId: string
   selectedPath?: string | null
+  selectedGitPath?: string | null
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
+  onSelectGitChange?: (entry: GitFileStatus) => void
   className?: string
   style?: CSSProperties
 }
@@ -25,8 +27,10 @@ type WorkspaceFileTreeProps = {
 export function WorkspaceFileTree({
   workingDirectoryId,
   selectedPath,
+  selectedGitPath,
   onSelectFile,
   onOpenFile,
+  onSelectGitChange,
   className,
   style,
 }: WorkspaceFileTreeProps) {
@@ -58,10 +62,18 @@ export function WorkspaceFileTree({
 
     return { statusByKey: nextStatusByKey, changedDirKeys: nextChangedDirKeys }
   }, [gitStatusQuery.data])
+  const gitChanges = useMemo(
+    () => [...(gitStatusQuery.data ?? [])].sort((left, right) => left.path.localeCompare(right.path)),
+    [gitStatusQuery.data],
+  )
 
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.files.trees(workingDirectoryId) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.files.searches(workingDirectoryId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.git.status(workingDirectoryId) })
+  }
+
+  const handleGitRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.git.status(workingDirectoryId) })
   }
 
@@ -82,7 +94,7 @@ export function WorkspaceFileTree({
   return (
     <section
       className={cn(
-        'grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-card',
+        'grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-border bg-card',
         className,
       )}
       style={style}
@@ -139,6 +151,8 @@ export function WorkspaceFileTree({
                   key={result.relativePath}
                   result={result}
                   selectedPath={selectedPath}
+                  statusByKey={statusByKey}
+                  changedDirKeys={changedDirKeys}
                   onSelectFile={onSelectFile}
                   onOpenFile={onOpenFile}
                 />
@@ -182,6 +196,18 @@ export function WorkspaceFileTree({
           </>
         )}
       </div>
+
+      <GitChangesList
+        entries={gitChanges}
+        isLoading={gitStatusQuery.isLoading}
+        isError={gitStatusQuery.isError}
+        isRefreshing={gitRefreshingCount > 0}
+        selectedPath={selectedGitPath}
+        onRefresh={handleGitRefresh}
+        onSelectChange={onSelectGitChange}
+        onSelectFile={onSelectFile}
+        onOpenFile={onOpenFile}
+      />
     </section>
   )
 }
@@ -189,12 +215,24 @@ export function WorkspaceFileTree({
 type SearchResultItemProps = {
   result: FileSearchResult
   selectedPath?: string | null
+  statusByKey: Map<string, GitFileStatusValue>
+  changedDirKeys: Set<string>
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
 }
 
-function SearchResultItem({ result, selectedPath, onSelectFile, onOpenFile }: SearchResultItemProps) {
+function SearchResultItem({
+  result,
+  selectedPath,
+  statusByKey,
+  changedDirKeys,
+  onSelectFile,
+  onOpenFile,
+}: SearchResultItemProps) {
   const isSelected = !result.isDirectory && selectedPath === result.relativePath
+  const status = result.isDirectory ? undefined : statusByKey.get(createFileKey(result.relativePath))
+  const meta = status ? getGitStatusMeta(status) : null
+  const hasDirectoryChanges = result.isDirectory && changedDirKeys.has(createFileKey(result.relativePath))
 
   const handleClick = () => {
     if (result.isDirectory) {
@@ -227,8 +265,131 @@ function SearchResultItem({ result, selectedPath, onSelectFile, onOpenFile }: Se
           <span className="truncate font-mono">{result.fileName}</span>
           <span className="truncate text-[0.68rem] text-muted-foreground">{result.relativePath}</span>
         </span>
+        {meta ? (
+          <span
+            className={cn('ml-auto shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
+            title={meta.label}
+          >
+            {meta.letter}
+          </span>
+        ) : null}
+        {hasDirectoryChanges ? (
+          <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-warning-solid/70" title="Alteracoes no diretorio" />
+        ) : null}
       </button>
     </li>
+  )
+}
+
+type GitChangesListProps = {
+  entries: GitFileStatus[]
+  isLoading: boolean
+  isError: boolean
+  isRefreshing: boolean
+  selectedPath?: string | null
+  onRefresh: () => void
+  onSelectChange?: (entry: GitFileStatus) => void
+  onSelectFile?: (relativePath: string) => void
+  onOpenFile?: (relativePath: string) => void
+}
+
+function GitChangesList({
+  entries,
+  isLoading,
+  isError,
+  isRefreshing,
+  selectedPath,
+  onRefresh,
+  onSelectChange,
+  onSelectFile,
+  onOpenFile,
+}: GitChangesListProps) {
+  const handleSelect = (entry: GitFileStatus) => {
+    if (onSelectChange) {
+      onSelectChange(entry)
+      return
+    }
+
+    if (entry.status !== 'Deleted') {
+      onSelectFile?.(entry.path)
+      onOpenFile?.(entry.path)
+    }
+  }
+
+  return (
+    <div className="grid max-h-48 min-h-0 grid-rows-[auto_minmax(0,1fr)] border-t border-border bg-background/50">
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+          <GitBranch className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Alteracoes (git)</span>
+          {entries.length ? <span className="shrink-0 text-muted-foreground">({entries.length})</span> : null}
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          title="Recarregar alteracoes"
+          aria-label="Recarregar alteracoes do git"
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-60"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+        </button>
+      </div>
+
+      <div className="min-h-0 overflow-auto px-1 pb-1">
+        {isLoading ? (
+          <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Carregando
+          </div>
+        ) : null}
+
+        {isError ? (
+          <div className="px-2 py-2 text-xs text-destructive">Nao foi possivel carregar as alteracoes.</div>
+        ) : null}
+
+        {!isLoading && !isError && !entries.length ? (
+          <div className="px-2 py-2 text-xs text-muted-foreground">Nenhuma alteracao detectada.</div>
+        ) : null}
+
+        <ul className="grid gap-0.5">
+          {entries.map((entry) => {
+            const meta = getGitStatusMeta(entry.status)
+            const parentPath = parentDirectoryPath(entry.path)
+            const fileName = entry.path.split('/').pop() || entry.path
+            const isSelected = selectedPath === entry.path
+            const disabled = !onSelectChange && entry.status === 'Deleted'
+
+            return (
+              <li key={`${entry.status}:${entry.path}:${entry.originalPath ?? ''}`}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(entry)}
+                  disabled={disabled}
+                  className={cn(
+                    'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60',
+                    isSelected && 'bg-accent text-foreground',
+                  )}
+                  title={entry.status === 'Renamed' && entry.originalPath ? `${entry.originalPath} -> ${entry.path}` : entry.path}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-mono">{fileName}</span>
+                    {parentPath ? <span className="truncate text-[0.68rem] text-muted-foreground">{parentPath}</span> : null}
+                  </span>
+                  <span
+                    className={cn('shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
+                    title={meta.label}
+                  >
+                    {meta.letter}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </div>
   )
 }
 

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { GitFileStatus } from '@/api/schemas'
 import { cn } from '@/lib/utils'
 import { FileViewerPanel } from './file-viewer-panel'
-import { GitChangesPanel } from './git-changes-panel'
 import { GitDiffViewer } from './git-diff-viewer'
 import { WorkspaceFileTree } from './workspace-file-tree'
 
@@ -44,20 +43,14 @@ export function FileExplorer({ workingDirectoryId, className, selectedPath, onSe
 
   return (
     <div className={cn('grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-1', className)}>
-      <div className="flex min-h-0 flex-col gap-4">
-        <WorkspaceFileTree
-          workingDirectoryId={workingDirectoryId}
-          selectedPath={activePath}
-          onSelectFile={handleSelectFile}
-          className="min-h-[18rem] flex-1 lg:min-h-0"
-        />
-        <GitChangesPanel
-          workingDirectoryId={workingDirectoryId}
-          selectedPath={diffSelection?.path}
-          onSelectChange={handleSelectChange}
-          className="max-h-80 min-h-40 shrink-0"
-        />
-      </div>
+      <WorkspaceFileTree
+        workingDirectoryId={workingDirectoryId}
+        selectedPath={activePath}
+        selectedGitPath={diffSelection?.path}
+        onSelectFile={handleSelectFile}
+        onSelectGitChange={handleSelectChange}
+        className="min-h-[24rem] lg:min-h-0"
+      />
 
       {diffSelection ? (
         <GitDiffViewer
