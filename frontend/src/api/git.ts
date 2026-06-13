@@ -1,5 +1,11 @@
 import { api } from './client'
-import { gitDiffSchema, gitOriginalFileSchema, gitStatusListSchema } from './schemas'
+import {
+  gitCommitContentSchema,
+  gitDiffSchema,
+  gitFileHistorySchema,
+  gitOriginalFileSchema,
+  gitStatusListSchema,
+} from './schemas'
 
 export async function getGitStatus(workingDirectoryId: string) {
   const searchParams = new URLSearchParams({
@@ -28,4 +34,25 @@ export async function getGitDiff(workingDirectoryId: string, path: string) {
 
   const data = await api.get('git/diff', { searchParams }).json<unknown>()
   return gitDiffSchema.parse(data)
+}
+
+export async function getFileGitHistory(workingDirectoryId: string, path: string) {
+  const searchParams = new URLSearchParams({
+    workingDirectoryId,
+    path,
+  })
+
+  const data = await api.get('git/history', { searchParams }).json<unknown>()
+  return gitFileHistorySchema.parse(data)
+}
+
+export async function getGitCommitContent(workingDirectoryId: string, path: string, hash: string) {
+  const searchParams = new URLSearchParams({
+    workingDirectoryId,
+    path,
+    hash,
+  })
+
+  const data = await api.get('git/file-content', { searchParams }).json<unknown>()
+  return gitCommitContentSchema.parse(data)
 }

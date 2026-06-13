@@ -68,6 +68,9 @@ export const queryKeys = {
     originalFile: (workingDirectoryId: string, path: string) =>
       ['git', 'original-file', workingDirectoryId, path] as const,
     diff: (workingDirectoryId: string, path: string) => ['git', 'diff', workingDirectoryId, path] as const,
+    history: (workingDirectoryId: string, path: string) => ['git', 'history', workingDirectoryId, path] as const,
+    commitContent: (workingDirectoryId: string, path: string, hash: string) =>
+      ['git', 'commit-content', workingDirectoryId, path, hash] as const,
   },
   prompts: {
     all: ['prompts'] as const,

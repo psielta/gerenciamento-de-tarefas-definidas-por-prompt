@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { FileViewerPanel } from './file-viewer-panel'
 import { GitDiffViewer } from './git-diff-viewer'
 import { useDirectoryChildren } from './use-file-queries'
+import { useGitHistory } from './use-git-history'
 import { WorkspaceFileTree } from './workspace-file-tree'
 
 type FileExplorerProps = {
@@ -33,6 +34,7 @@ export function FileExplorer({
   onSelectFile,
   onClearSelection,
 }: FileExplorerProps) {
+  const { openHistory } = useGitHistory()
   const rootQuery = useDirectoryChildren(workingDirectoryId, '')
   const [internalPath, setInternalPath] = useState<string | null>(null)
   const [diffSelection, setDiffSelection] = useState<GitFileStatus | null>(null)
@@ -74,6 +76,7 @@ export function FileExplorer({
         selectedGitPath={diffSelection?.path}
         onSelectFile={handleSelectFile}
         onSelectGitChange={handleSelectChange}
+        onShowGitHistory={(path) => openHistory(workingDirectoryId, path)}
         className="min-h-[24rem] lg:min-h-0"
       />
 

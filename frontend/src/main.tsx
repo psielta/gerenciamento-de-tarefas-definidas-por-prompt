@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme/theme-provider'
 import { ThemedToaster } from '@/components/theme/themed-toaster'
 import { queryClient } from '@/query-client'
 import { FileViewerProvider } from '@/features/files/file-viewer-provider'
+import { GitHistoryProvider } from '@/features/files/git-history-provider'
 import { PromptHubProvider } from '@/realtime/prompt-hub'
 import { router } from '@/router'
 import '@fontsource-variable/geist'
@@ -19,8 +20,10 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <PromptHubProvider>
           <FileViewerProvider>
-            <RouterProvider router={router} />
-            <ThemedToaster />
+            <GitHistoryProvider>
+              <RouterProvider router={router} />
+              <ThemedToaster />
+            </GitHistoryProvider>
           </FileViewerProvider>
         </PromptHubProvider>
         {/* bottom-left para nao cobrir o botao flutuante global de novo prompt */}

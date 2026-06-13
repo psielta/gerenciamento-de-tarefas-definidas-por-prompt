@@ -7,6 +7,10 @@ import * as gitApi from '@/api/git'
 import type { WorkingDirectory } from '@/api/schemas'
 import { ExpandedFileExplorer } from './expanded-file-explorer'
 
+vi.mock('./use-git-history', () => ({
+  useGitHistory: () => ({ openHistory: vi.fn(), closeHistory: vi.fn(), target: null }),
+}))
+
 vi.mock('@/api/files')
 vi.mock('@/api/git')
 
