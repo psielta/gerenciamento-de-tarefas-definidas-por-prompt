@@ -25,10 +25,12 @@ public sealed class TerminalEnvironmentBootstrapTests
 
         try
         {
-            var environment = TerminalEnvironmentBootstrap.BuildSpawnEnvironment();
+            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var environment = TerminalEnvironmentBootstrap.BuildSpawnEnvironment(profile);
 
             environment.Should().ContainKey("PATH");
             environment["PATH"].Should().Contain(marker);
+            environment["USERPROFILE"].Should().Be(profile);
             environment.Should().ContainKey("TERM").WhoseValue.Should().Be("xterm-256color");
             environment.Should().ContainKey("FORCE_COLOR").WhoseValue.Should().Be("1");
         }

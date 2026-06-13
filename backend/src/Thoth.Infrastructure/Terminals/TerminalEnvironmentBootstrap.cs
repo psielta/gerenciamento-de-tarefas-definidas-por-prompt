@@ -2,9 +2,10 @@ namespace Thoth.Infrastructure.Terminals;
 
 public static class TerminalEnvironmentBootstrap
 {
-    public static Dictionary<string, string> BuildSpawnEnvironment()
+    public static Dictionary<string, string> BuildSpawnEnvironment(string? userProfileHint = null)
     {
-        var environment = WindowsUserEnvironmentBlock.TryCreate() ?? CopyCurrentProcessEnvironment();
+        var environment = CopyCurrentProcessEnvironment();
+        WindowsLoggedOnUserEnvironment.ApplyUserOverlay(environment, userProfileHint);
 
         foreach (var (key, value) in BuildColorOverrides())
         {
@@ -14,7 +15,8 @@ public static class TerminalEnvironmentBootstrap
         return environment;
     }
 
-    public static Dictionary<string, string> BuildColorEnvironment() => BuildSpawnEnvironment();
+    public static Dictionary<string, string> BuildColorEnvironment(string? userProfileHint = null) =>
+        BuildSpawnEnvironment(userProfileHint);
 
     public static Dictionary<string, string> BuildColorOverrides()
     {

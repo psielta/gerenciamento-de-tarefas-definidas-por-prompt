@@ -1,9 +1,12 @@
+using Microsoft.Extensions.Configuration;
 using Porta.Pty;
 
 namespace Thoth.Infrastructure.Terminals;
 
-public sealed class PortaPtyConnectionFactory : IPtyConnectionFactory
+public sealed class PortaPtyConnectionFactory(IConfiguration configuration) : IPtyConnectionFactory
 {
+    private readonly string? _userProfileHint = TerminalUserProfileResolver.Resolve(configuration);
+
     public async Task<IPtyConnection> CreateAsync(
         string shell,
         string cwd,
@@ -21,7 +24,7 @@ public sealed class PortaPtyConnectionFactory : IPtyConnectionFactory
             CommandLine = TerminalShellBootstrap.IsPowerShell(shell)
                 ? TerminalShellBootstrap.BuildPowerShellStartupArgs(cwd)
                 : [],
-            Environment = TerminalEnvironmentBootstrap.BuildSpawnEnvironment(),
+            Environment = TerminalEnvironmentBootstrap.BuildSpawnEnvironment(_userProfileHint),
         };
 
         var connection = await PtyProvider.SpawnAsync(options, cancellationToken);
