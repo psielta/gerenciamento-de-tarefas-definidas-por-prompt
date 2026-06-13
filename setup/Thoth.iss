@@ -323,6 +323,10 @@ begin
     '      "SessionsDir": "' + JsonEscape(AgentPathsPage.Values[2]) + '"' + #13#10 +
     '    }' + #13#10 +
     '  },' + #13#10 +
+    '  "Terminals": {' + #13#10 +
+    '    "Enabled": true,' + #13#10 +
+    '    "DefaultShell": "powershell.exe"' + #13#10 +
+    '  },' + #13#10 +
     '  "Gemini": {' + #13#10 +
     '    "ApiKey": "' + JsonEscape(DbPage.Values[5]) + '"' + #13#10 +
     '  },' + #13#10 +
