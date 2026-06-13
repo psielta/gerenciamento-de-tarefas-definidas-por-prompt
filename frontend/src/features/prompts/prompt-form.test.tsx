@@ -39,6 +39,10 @@ vi.mock('@/features/files/use-file-viewer', () => ({
   useFileViewer: () => ({ openFile: vi.fn() }),
 }))
 
+vi.mock('@/features/files/use-git-history', () => ({
+  useGitHistory: () => ({ openHistory: vi.fn(), closeHistory: vi.fn(), target: null }),
+}))
+
 vi.mock('@/features/files/workspace-file-tree', () => ({
   WorkspaceFileTree: () => <div data-testid="workspace-file-tree" />,
 }))

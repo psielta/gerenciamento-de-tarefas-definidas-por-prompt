@@ -80,6 +80,27 @@ export const gitDiffSchema = z.object({
   diff: z.string(),
 })
 
+export const gitCommitSchema = z.object({
+  hash: z.string(),
+  shortHash: z.string(),
+  author: z.string(),
+  date: z.string(),
+  message: z.string(),
+  parentHash: z.string(),
+})
+
+export const gitFileHistorySchema = z.object({
+  isRepository: z.boolean(),
+  commits: z.array(gitCommitSchema),
+})
+
+export const gitCommitContentSchema = z.object({
+  content: z.string(),
+  exists: z.boolean(),
+  isBinary: z.boolean(),
+  truncated: z.boolean(),
+})
+
 export const fileReferenceValidationSchema = z.object({
   rawPath: z.string(),
   relativePath: z.string(),
@@ -211,6 +232,9 @@ export type GitFileStatusValue = z.infer<typeof gitFileStatusValueSchema>
 export type GitFileStatus = z.infer<typeof gitFileStatusSchema>
 export type GitOriginalFile = z.infer<typeof gitOriginalFileSchema>
 export type GitDiff = z.infer<typeof gitDiffSchema>
+export type GitCommit = z.infer<typeof gitCommitSchema>
+export type GitFileHistory = z.infer<typeof gitFileHistorySchema>
+export type GitCommitContent = z.infer<typeof gitCommitContentSchema>
 export type FileReferenceValidation = z.infer<typeof fileReferenceValidationSchema>
 export type Prompt = z.infer<typeof promptSchema>
 export type FutureTask = z.infer<typeof futureTaskSchema>

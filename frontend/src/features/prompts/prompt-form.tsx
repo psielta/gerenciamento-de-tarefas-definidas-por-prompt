@@ -22,6 +22,7 @@ import {
   type PromptFormValues,
 } from './constants'
 import { useFileViewer } from '@/features/files/use-file-viewer'
+import { useGitHistory } from '@/features/files/use-git-history'
 import { WorkspaceFileTree } from '@/features/files/workspace-file-tree'
 import { buildSeededPromptContent } from '@/features/future-tasks/seed-prompt-content'
 import { PromptEditor } from './prompt-editor'
@@ -56,6 +57,7 @@ export function PromptForm({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { openFile } = useFileViewer()
+  const { openHistory } = useGitHistory()
   const [editorMentions, setEditorMentions] = useState<{
     promptId?: string
     mentions: FileMention[]
@@ -303,6 +305,7 @@ export function PromptForm({
         <WorkspaceFileTree
           workingDirectoryId={workingDirectoryId}
           onOpenFile={(relativePath) => openFile(workingDirectoryId, relativePath)}
+          onShowGitHistory={(relativePath) => openHistory(workingDirectoryId, relativePath)}
           className="hidden min-h-[28rem] xl:grid"
         />
       ) : null}

@@ -6,6 +6,7 @@ import { queryKeys } from '@/api/query-keys'
 import type { FileSearchResult, FileTreeNode, GitFileStatus, GitFileStatusValue } from '@/api/schemas'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { cn } from '@/lib/utils'
+import { FileContextMenu } from './file-context-menu'
 import { createFileKey, parentDirectoryPath } from './file-key'
 import { getGitStatusMeta } from './git-status-meta'
 import { useDirectoryChildren, useFileSearch } from './use-file-queries'
@@ -20,6 +21,7 @@ type WorkspaceFileTreeProps = {
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
   onSelectGitChange?: (entry: GitFileStatus) => void
+  onShowGitHistory?: (relativePath: string) => void
   className?: string
   style?: CSSProperties
 }
@@ -31,6 +33,7 @@ export function WorkspaceFileTree({
   onSelectFile,
   onOpenFile,
   onSelectGitChange,
+  onShowGitHistory,
   className,
   style,
 }: WorkspaceFileTreeProps) {
@@ -165,6 +168,7 @@ export function WorkspaceFileTree({
                   changedDirKeys={changedDirKeys}
                   onSelectFile={onSelectFile}
                   onOpenFile={onOpenFile}
+                  onShowGitHistory={onShowGitHistory}
                 />
               ))}
             </ul>
@@ -205,6 +209,7 @@ export function WorkspaceFileTree({
                   onToggleExpanded={toggleExpanded}
                   onSelectFile={onSelectFile}
                   onOpenFile={onOpenFile}
+                  onShowGitHistory={onShowGitHistory}
                 />
               ))}
             </ul>
@@ -236,6 +241,7 @@ type SearchResultItemProps = {
   changedDirKeys: Set<string>
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
+  onShowGitHistory?: (relativePath: string) => void
 }
 
 function SearchResultItem({
@@ -245,6 +251,7 @@ function SearchResultItem({
   changedDirKeys,
   onSelectFile,
   onOpenFile,
+  onShowGitHistory,
 }: SearchResultItemProps) {
   const isSelected = !result.isDirectory && selectedPath === result.relativePath
   const status = result.isDirectory ? undefined : statusByKey.get(createFileKey(result.relativePath))
@@ -260,40 +267,48 @@ function SearchResultItem({
     onOpenFile?.(result.relativePath)
   }
 
+  const button = (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={result.isDirectory}
+      className={cn(
+        'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs transition-colors',
+        result.isDirectory ? 'cursor-default' : 'hover:bg-muted',
+        isSelected && 'bg-accent text-foreground',
+      )}
+      title={result.relativePath}
+    >
+      {result.isDirectory ? (
+        <Folder className="h-3.5 w-3.5 shrink-0 text-warning-solid" />
+      ) : (
+        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate font-mono">{result.fileName}</span>
+        <span className="truncate text-[0.68rem] text-muted-foreground">{result.relativePath}</span>
+      </span>
+      {meta ? (
+        <span
+          className={cn('ml-auto shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
+          title={meta.label}
+        >
+          {meta.letter}
+        </span>
+      ) : null}
+      {hasDirectoryChanges ? (
+        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-warning-solid/70" title="Alteracoes no diretorio" />
+      ) : null}
+    </button>
+  )
+
   return (
     <li>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={result.isDirectory}
-        className={cn(
-          'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs transition-colors',
-          result.isDirectory ? 'cursor-default' : 'hover:bg-muted',
-          isSelected && 'bg-accent text-foreground',
-        )}
-        title={result.relativePath}
-      >
-        {result.isDirectory ? (
-          <Folder className="h-3.5 w-3.5 shrink-0 text-warning-solid" />
-        ) : (
-          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate font-mono">{result.fileName}</span>
-          <span className="truncate text-[0.68rem] text-muted-foreground">{result.relativePath}</span>
-        </span>
-        {meta ? (
-          <span
-            className={cn('ml-auto shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
-            title={meta.label}
-          >
-            {meta.letter}
-          </span>
-        ) : null}
-        {hasDirectoryChanges ? (
-          <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-warning-solid/70" title="Alteracoes no diretorio" />
-        ) : null}
-      </button>
+      {!result.isDirectory && onShowGitHistory ? (
+        <FileContextMenu onShowGitHistory={() => onShowGitHistory(result.relativePath)}>{button}</FileContextMenu>
+      ) : (
+        button
+      )}
     </li>
   )
 }
@@ -421,6 +436,7 @@ type TreeNodeProps = {
   onToggleExpanded: (relativePath: string) => void
   onSelectFile?: (relativePath: string) => void
   onOpenFile?: (relativePath: string) => void
+  onShowGitHistory?: (relativePath: string) => void
 }
 
 function TreeNode({
@@ -434,6 +450,7 @@ function TreeNode({
   onToggleExpanded,
   onSelectFile,
   onOpenFile,
+  onShowGitHistory,
 }: TreeNodeProps) {
   const isExpanded = expandedPaths.has(node.relativePath)
   const childrenQuery = useDirectoryChildren(workingDirectoryId, node.relativePath, node.isDirectory && isExpanded)
@@ -470,45 +487,53 @@ function TreeNode({
     event.dataTransfer.setData('text/plain', `@${node.relativePath}`)
   }
 
+  const button = (
+    <button
+      type="button"
+      draggable={!node.isDirectory}
+      onClick={handleClick}
+      onDragStart={handleDragStart}
+      className={cn(
+        'flex w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted',
+        isSelected && 'bg-accent text-foreground',
+      )}
+      style={{ paddingLeft: `${depth * 0.85 + 0.35}rem` }}
+      title={node.relativePath}
+    >
+      {node.isDirectory ? (
+        <ChevronRight
+          className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', isExpanded && 'rotate-90')}
+        />
+      ) : (
+        <span className="inline-block h-3.5 w-3.5 shrink-0" />
+      )}
+      {node.isDirectory ? (
+        <Folder className="h-3.5 w-3.5 shrink-0 text-warning-solid" />
+      ) : (
+        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate font-mono">{node.name}</span>
+      {meta ? (
+        <span
+          className={cn('ml-auto shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
+          title={meta.label}
+        >
+          {meta.letter}
+        </span>
+      ) : null}
+      {hasDirectoryChanges ? (
+        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-warning-solid/70" title="Alteracoes no diretorio" />
+      ) : null}
+    </button>
+  )
+
   return (
     <li>
-      <button
-        type="button"
-        draggable={!node.isDirectory}
-        onClick={handleClick}
-        onDragStart={handleDragStart}
-        className={cn(
-          'flex w-full min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted',
-          isSelected && 'bg-accent text-foreground',
-        )}
-        style={{ paddingLeft: `${depth * 0.85 + 0.35}rem` }}
-        title={node.relativePath}
-      >
-        {node.isDirectory ? (
-          <ChevronRight
-            className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', isExpanded && 'rotate-90')}
-          />
-        ) : (
-          <span className="inline-block h-3.5 w-3.5 shrink-0" />
-        )}
-        {node.isDirectory ? (
-          <Folder className="h-3.5 w-3.5 shrink-0 text-warning-solid" />
-        ) : (
-          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="truncate font-mono">{node.name}</span>
-        {meta ? (
-          <span
-            className={cn('ml-auto shrink-0 rounded px-1 font-mono text-[0.65rem] font-semibold', meta.badgeClass)}
-            title={meta.label}
-          >
-            {meta.letter}
-          </span>
-        ) : null}
-        {hasDirectoryChanges ? (
-          <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-warning-solid/70" title="Alteracoes no diretorio" />
-        ) : null}
-      </button>
+      {!node.isDirectory && onShowGitHistory ? (
+        <FileContextMenu onShowGitHistory={() => onShowGitHistory(node.relativePath)}>{button}</FileContextMenu>
+      ) : (
+        button
+      )}
 
       {node.isDirectory && isExpanded ? (
         <div className="grid gap-0.5">
@@ -536,6 +561,7 @@ function TreeNode({
                 onToggleExpanded={onToggleExpanded}
                 onSelectFile={onSelectFile}
                 onOpenFile={onOpenFile}
+                onShowGitHistory={onShowGitHistory}
               />
             ))}
           </ul>

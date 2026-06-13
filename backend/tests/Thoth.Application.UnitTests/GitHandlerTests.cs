@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Thoth.Application.Common.Exceptions;
 using Thoth.Application.Common.Interfaces;
 using Thoth.Application.Common.Models;
+using Thoth.Application.Features.Git.Queries.GetFileGitContent;
+using Thoth.Application.Features.Git.Queries.GetFileGitHistory;
 using Thoth.Application.Features.Git.Queries.GetGitDiff;
 using Thoth.Application.Features.Git.Queries.GetGitStatus;
 using Thoth.Application.Features.Git.Queries.GetOriginalFileContent;
@@ -172,10 +174,192 @@ public sealed class GitHandlerTests
         ValidationResult statusResult = new GetGitStatusValidator().Validate(new GetGitStatusQuery(Guid.Empty));
         ValidationResult originalResult = new GetOriginalFileContentValidator().Validate(new GetOriginalFileContentQuery(Guid.Empty, ""));
         ValidationResult diffResult = new GetGitDiffValidator().Validate(new GetGitDiffQuery(Guid.Empty, ""));
+        ValidationResult historyResult = new GetFileGitHistoryValidator().Validate(new GetFileGitHistoryQuery(Guid.Empty, ""));
 
         statusResult.IsValid.Should().BeFalse();
         originalResult.IsValid.Should().BeFalse();
         diffResult.IsValid.Should().BeFalse();
+        historyResult.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetFileGitHistory_returns_not_repository_without_running_log()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(new GitCommandResult(128, string.Empty, "not a git repository"));
+        var handler = new GetFileGitHistoryHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitHistoryHandler>.Instance);
+
+        var result = await handler.Handle(new GetFileGitHistoryQuery(directory.Id, "src/app.ts"), CancellationToken.None);
+
+        result.IsRepository.Should().BeFalse();
+        result.Commits.Should().BeEmpty();
+        git.Calls.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task GetFileGitHistory_returns_empty_commits_when_log_succeeds_with_no_output()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(
+            new GitCommandResult(0, string.Empty, string.Empty),
+            new GitCommandResult(0, string.Empty, string.Empty));
+        var handler = new GetFileGitHistoryHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitHistoryHandler>.Instance);
+
+        var result = await handler.Handle(new GetFileGitHistoryQuery(directory.Id, "src/app.ts"), CancellationToken.None);
+
+        result.IsRepository.Should().BeTrue();
+        result.Commits.Should().BeEmpty();
+        git.Calls.Should().HaveCount(2);
+        git.Calls[1].Arguments.Should().Equal(
+            "-c",
+            "core.quotepath=false",
+            "log",
+            "--no-color",
+            "-z",
+            "--format=%H%x1f%h%x1f%an%x1f%aI%x1f%P%x1f%s",
+            "-n",
+            "100",
+            "--",
+            "src/app.ts");
+    }
+
+    [Fact]
+    public async Task GetFileGitHistory_returns_empty_commits_when_log_exit_code_is_128()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(
+            new GitCommandResult(0, string.Empty, string.Empty),
+            new GitCommandResult(128, string.Empty, "fatal"));
+        var handler = new GetFileGitHistoryHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitHistoryHandler>.Instance);
+
+        var result = await handler.Handle(new GetFileGitHistoryQuery(directory.Id, "untracked.ts"), CancellationToken.None);
+
+        result.IsRepository.Should().BeTrue();
+        result.Commits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFileGitHistory_parses_commits_on_happy_path()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var logOutput =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1f" +
+            "aaaaaaa\x1f" +
+            "Author\x1f" +
+            "2026-01-01T00:00:00+00:00\x1f" +
+            "\x1f" +
+            "Initial\x0";
+        var git = new FakeGitCommandRunner(
+            new GitCommandResult(0, string.Empty, string.Empty),
+            new GitCommandResult(0, logOutput, string.Empty));
+        var handler = new GetFileGitHistoryHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitHistoryHandler>.Instance);
+
+        var result = await handler.Handle(new GetFileGitHistoryQuery(directory.Id, "src/app.ts"), CancellationToken.None);
+
+        result.IsRepository.Should().BeTrue();
+        result.Commits.Should().ContainSingle();
+        result.Commits[0].Hash.Should().Be("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        result.Commits[0].Message.Should().Be("Initial");
+    }
+
+    [Fact]
+    public async Task GetFileGitHistory_rejects_unknown_working_directory()
+    {
+        var context = new FakeApplicationDbContext();
+        SeedWorkingDirectory(context, ownerId: Guid.CreateVersion7());
+        var handler = new GetFileGitHistoryHandler(
+            context,
+            new FakeGitCommandRunner(),
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitHistoryHandler>.Instance);
+
+        var act = () => handler.Handle(new GetFileGitHistoryQuery(Guid.CreateVersion7(), "src/app.ts"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetFileGitContent_returns_content_when_show_succeeds()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(
+            new GitCommandResult(0, "12", string.Empty),
+            new GitCommandResult(0, "const total = 1;", string.Empty));
+        var handler = new GetFileGitContentHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitContentHandler>.Instance);
+
+        var result = await handler.Handle(
+            new GetFileGitContentQuery(directory.Id, "src/app.ts", "abcdef0123456"),
+            CancellationToken.None);
+
+        result.Should().BeEquivalentTo(new GitFileContentAtCommitDto("const total = 1;", true, false, false));
+        git.Calls[0].Arguments.Should().Equal("cat-file", "-s", "abcdef0123456:./src/app.ts");
+        git.Calls[1].Arguments.Should().Equal("show", "abcdef0123456:./src/app.ts");
+    }
+
+    [Fact]
+    public async Task GetFileGitContent_returns_not_exists_when_cat_file_fails()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(new GitCommandResult(128, string.Empty, "fatal"));
+        var handler = new GetFileGitContentHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitContentHandler>.Instance);
+
+        var result = await handler.Handle(
+            new GetFileGitContentQuery(directory.Id, "src/app.ts", "abcdef0123456"),
+            CancellationToken.None);
+
+        result.Should().BeEquivalentTo(new GitFileContentAtCommitDto(string.Empty, false, false, false));
+        git.Calls.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task GetFileGitContent_detects_binary_content()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context);
+        var git = new FakeGitCommandRunner(
+            new GitCommandResult(0, "4", string.Empty),
+            new GitCommandResult(0, "a\0b", string.Empty));
+        var handler = new GetFileGitContentHandler(
+            context,
+            git,
+            new FakeCurrentUser(),
+            NullLogger<GetFileGitContentHandler>.Instance);
+
+        var result = await handler.Handle(
+            new GetFileGitContentQuery(directory.Id, "bin.dat", "abcdef0123456"),
+            CancellationToken.None);
+
+        result.Should().BeEquivalentTo(new GitFileContentAtCommitDto(string.Empty, true, true, false));
     }
 
     private static WorkingDirectory SeedWorkingDirectory(

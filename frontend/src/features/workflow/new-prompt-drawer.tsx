@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import type { WorkingDirectory } from '@/api/schemas'
 import { useFileViewer } from '@/features/files/use-file-viewer'
+import { useGitHistory } from '@/features/files/use-git-history'
 import { WorkspaceFileTree } from '@/features/files/workspace-file-tree'
 import { PromptForm } from '@/features/prompts/prompt-form'
 
@@ -26,6 +27,7 @@ export function NewPromptDrawer({
   initialContent,
 }: NewPromptDrawerProps) {
   const { openFile } = useFileViewer()
+  const { openHistory } = useGitHistory()
   const [workingDirectoryId, setWorkingDirectoryId] = useState(
     defaultWorkingDirectoryId ?? (workspaces.length === 1 ? workspaces[0].id : '')
   )
@@ -87,6 +89,7 @@ export function NewPromptDrawer({
                 <WorkspaceFileTree
                   workingDirectoryId={workingDirectoryId}
                   onOpenFile={(relativePath) => openFile(workingDirectoryId, relativePath)}
+                  onShowGitHistory={(relativePath) => openHistory(workingDirectoryId, relativePath)}
                   className="min-h-[24rem]"
                 />
                 <PromptForm
