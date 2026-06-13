@@ -17,7 +17,10 @@ public sealed class PortaPtyConnectionFactory : IPtyConnectionFactory
             Cols = cols,
             Rows = rows,
             Cwd = cwd,
-            App = shell
+            App = shell,
+            CommandLine = TerminalShellBootstrap.IsPowerShell(shell)
+                ? TerminalShellBootstrap.BuildPowerShellStartupArgs(cwd)
+                : []
         };
 
         var connection = await PtyProvider.SpawnAsync(options, cancellationToken);

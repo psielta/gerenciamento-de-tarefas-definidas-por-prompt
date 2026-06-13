@@ -23,15 +23,26 @@ public sealed class CreateTerminalSessionHandler(
             throw new ForbiddenException("Cannot create terminal sessions for archived prompts.");
         }
 
-        var directory = PromptMutationHelpers.GetWorkingDirectory(
-            context,
-            prompt.WorkingDirectoryId,
-            currentUser.UserId);
+        var directory = ResolveWorkspaceDirectory(context, prompt, currentUser.UserId);
 
         return await terminalCoordinator.CreateAsync(
             prompt.Id,
             directory.AbsolutePath,
             request.Shell ?? string.Empty,
             cancellationToken);
+    }
+
+    private static Domain.WorkingDirectories.WorkingDirectory ResolveWorkspaceDirectory(
+        IApplicationDbContext context,
+        Prompt prompt,
+        Guid ownerId)
+    {
+        if (prompt.ParentPromptId is { } parentPromptId)
+        {
+            var parentPrompt = PromptMutationHelpers.GetPrompt(context, parentPromptId, ownerId);
+            return PromptMutationHelpers.GetWorkingDirectory(context, parentPrompt.WorkingDirectoryId, ownerId);
+        }
+
+        return PromptMutationHelpers.GetWorkingDirectory(context, prompt.WorkingDirectoryId, ownerId);
     }
 }

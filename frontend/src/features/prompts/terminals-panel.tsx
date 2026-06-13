@@ -49,6 +49,11 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
     return sessions[0]?.id ?? null
   }, [activeSessionId, sessions])
 
+  const activeSession = useMemo(
+    () => sessions.find((session) => session.id === resolvedActiveId) ?? null,
+    [resolvedActiveId, sessions],
+  )
+
   const createMutation = useMutation({
     mutationFn: () => createTerminal(promptId),
     onSuccess: (session) => {
@@ -93,8 +98,16 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
           <Plus className="h-4 w-4" />
           Novo terminal
         </Button>
+        {activeSession ? (
+          <span
+            className="min-w-0 max-w-full truncate font-mono text-xs text-muted-foreground"
+            title={activeSession.cwd}
+          >
+            {activeSession.cwd}
+          </span>
+        ) : null}
         {sessions.length === 0 ? (
-          <span className="text-sm text-muted-foreground">Nenhum terminal aberto.</span>
+          <span className="text-sm text-muted-foreground">Nenhum terminal aberto. O diretório inicial é o workspace do prompt.</span>
         ) : (
           sessions.map((session, index) => {
             const isActive = session.id === resolvedActiveId
