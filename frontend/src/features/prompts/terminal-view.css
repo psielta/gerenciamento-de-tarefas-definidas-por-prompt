@@ -1,10 +1,10 @@
 .thoth-terminal .xterm {
   height: 100%;
   width: 100%;
+  padding: 0;
 }
 
 .thoth-terminal .xterm-viewport {
-  overflow-y: auto !important;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--border) 80%, transparent) transparent;

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { usePromptHub } from '@/realtime/prompt-hub'
 
 const TERMINAL_FONT_FAMILY =
-  '"JetBrains Mono Variable", ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace'
+  '"Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", ui-monospace, monospace'
 
 type TerminalViewProps = {
   sessionId: string
@@ -21,16 +21,21 @@ type TerminalViewProps = {
 function scheduleTerminalFit(
   fitAddon: FitAddon,
   term: Terminal,
-  onSized?: (cols: number, rows: number) => void,
+  options?: { notifyBackend?: boolean; onSized?: (cols: number, rows: number) => void },
 ) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       try {
         fitAddon.fit()
-        onSized?.(term.cols, term.rows)
       } catch {
-        // FitAddon throws when the container has no measurable size yet.
+        return
       }
+
+      if (options?.notifyBackend) {
+        options.onSized?.(term.cols, term.rows)
+      }
+
+      term.refresh(0, term.rows - 1)
     })
   })
 }
@@ -65,9 +70,10 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
       convertEol: false,
       scrollback: 10_000,
       smoothScrollDuration: 0,
+      fastScrollModifier: 'alt',
       fontFamily: TERMINAL_FONT_FAMILY,
       fontSize,
-      lineHeight: 1.3,
+      lineHeight: 1,
       theme: {
         background: '#0f1117',
         foreground: '#e6edf3',
@@ -80,15 +86,22 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
     term.open(container)
     terminalRef.current = { term, fitAddon }
 
-    scheduleTerminalFit(fitAddon, term, (cols, rows) => {
+    const notifyBackendResize = (cols: number, rows: number) => {
+      if (!activeRef.current) {
+        return
+      }
+
       resizeTerminal(sessionId, cols, rows)
-    })
+    }
+
+    if (activeRef.current) {
+      scheduleTerminalFit(fitAddon, term, { notifyBackend: true, onSized: notifyBackendResize })
+    }
 
     joinTerminal(sessionId)
 
     const unsubscribeOutput = subscribeTerminalOutput(sessionId, (dataBase64) => {
-      const bytes = base64ToBytes(dataBase64)
-      term.write(bytes)
+      term.write(base64ToBytes(dataBase64))
     })
 
     const unsubscribeExit = subscribeTerminalExit(sessionId, (exitCode) => {
@@ -99,10 +112,6 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
     const dataDisposable = term.onData((data) => {
       const bytes = new TextEncoder().encode(data)
       sendTerminalInput(sessionId, bytesToBase64(bytes))
-    })
-
-    const resizeDisposable = term.onResize(({ cols, rows }) => {
-      resizeTerminal(sessionId, cols, rows)
     })
 
     const onWheel = (event: WheelEvent) => {
@@ -123,7 +132,6 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
     return () => {
       container.removeEventListener('wheel', onWheel)
       dataDisposable.dispose()
-      resizeDisposable.dispose()
       unsubscribeOutput()
       unsubscribeExit()
       leaveTerminal(sessionId)
@@ -149,12 +157,9 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
     }
 
     terminal.term.options.fontSize = fontSize
-    if (!active) {
-      return
-    }
-
-    scheduleTerminalFit(terminal.fitAddon, terminal.term, (cols, rows) => {
-      resizeTerminal(sessionId, cols, rows)
+    scheduleTerminalFit(terminal.fitAddon, terminal.term, {
+      notifyBackend: active,
+      onSized: (cols, rows) => resizeTerminal(sessionId, cols, rows),
     })
   }, [active, fontSize, resizeTerminal, sessionId])
 
@@ -165,23 +170,21 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
       return
     }
 
-    const fit = () => {
-      if (!active) {
-        return
-      }
+    if (!active) {
+      return
+    }
 
-      scheduleTerminalFit(terminal.fitAddon, terminal.term, (cols, rows) => {
-        resizeTerminal(sessionId, cols, rows)
+    const fit = () => {
+      scheduleTerminalFit(terminal.fitAddon, terminal.term, {
+        notifyBackend: true,
+        onSized: (cols, rows) => resizeTerminal(sessionId, cols, rows),
       })
       terminal.term.focus()
     }
 
     const resizeObserver = new ResizeObserver(() => fit())
     resizeObserver.observe(container)
-
-    if (active) {
-      fit()
-    }
+    fit()
 
     return () => resizeObserver.disconnect()
   }, [active, resizeTerminal, sessionId])
@@ -191,7 +194,7 @@ export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExi
       ref={containerRef}
       className={cn(
         'thoth-terminal absolute inset-0 overflow-hidden',
-        !active && 'pointer-events-none invisible',
+        active ? 'z-10' : 'z-0 pointer-events-none invisible',
       )}
       aria-hidden={!active}
     />

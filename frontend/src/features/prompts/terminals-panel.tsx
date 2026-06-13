@@ -136,14 +136,11 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
             )
           })
         )}
-      </div>
-
-      {sessions.length > 0 ? (
-        <div className="relative h-[min(70vh,640px)] w-full overflow-hidden rounded-md border border-border bg-[#0f1117]">
+        {sessions.length > 0 ? (
           <div
             role="group"
             aria-label="Zoom do terminal"
-            className="pointer-events-auto absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-border bg-card/95 p-0.5 shadow-sm backdrop-blur-sm"
+            className="ml-auto flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5"
           >
             <Button
               type="button"
@@ -180,18 +177,21 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
               <ZoomIn className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="absolute inset-0 pt-10">
-            {sessions.map((session) => (
-              <TerminalView
-                key={session.id}
-                sessionId={session.id}
-                active={session.id === resolvedActiveId}
-                fontSize={fontSize}
-                onZoom={adjustFontSize}
-                onSessionExit={removeSession}
-              />
-            ))}
-          </div>
+        ) : null}
+      </div>
+
+      {sessions.length > 0 ? (
+        <div className="relative h-[min(70vh,640px)] w-full overflow-hidden rounded-md border border-border bg-[#0f1117]">
+          {sessions.map((session) => (
+            <TerminalView
+              key={session.id}
+              sessionId={session.id}
+              active={session.id === resolvedActiveId}
+              fontSize={fontSize}
+              onZoom={adjustFontSize}
+              onSessionExit={removeSession}
+            />
+          ))}
         </div>
       ) : null}
     </div>
