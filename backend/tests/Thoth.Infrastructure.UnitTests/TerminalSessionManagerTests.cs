@@ -123,6 +123,49 @@ public sealed class TerminalSessionManagerTests : IDisposable
         _ptyFactory.KilledCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ReapOrphansAsync_kills_unattached_session_after_timeout()
+    {
+        await _manager.StartAsync(CancellationToken.None);
+
+        try
+        {
+            var promptId = Guid.CreateVersion7();
+            var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
+
+            await Task.Delay(11_500);
+
+            _manager.TryGetSession(descriptor.Id).Should().BeNull();
+            _ptyFactory.KilledCount.Should().Be(1);
+        }
+        finally
+        {
+            await _manager.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task ReapOrphansAsync_keeps_session_with_attached_connection()
+    {
+        await _manager.StartAsync(CancellationToken.None);
+
+        try
+        {
+            var promptId = Guid.CreateVersion7();
+            var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
+            _manager.AttachConnection(descriptor.Id, "conn-1");
+
+            await Task.Delay(11_500);
+
+            _manager.TryGetSession(descriptor.Id).Should().NotBeNull();
+            _ptyFactory.KilledCount.Should().Be(0);
+        }
+        finally
+        {
+            await _manager.StopAsync(CancellationToken.None);
+        }
+    }
+
     public void Dispose()
     {
         _manager.Dispose();

@@ -146,9 +146,11 @@ export function PromptDetailView({ workspaceId, promptId, activeTab, onTabChange
         <PromptChildrenPanel workingDirectoryId={workspaceId} parentPromptId={promptId} />
       ) : null}
 
-      {activeTab === 'terminals' && terminalsEnabled ? (
+      {terminalsEnabled ? (
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando terminais...</div>}>
-          <TerminalsPanel promptId={promptId} />
+          <div className={activeTab === 'terminals' ? undefined : 'hidden'}>
+            <TerminalsPanel promptId={promptId} />
+          </div>
         </Suspense>
       ) : null}
 

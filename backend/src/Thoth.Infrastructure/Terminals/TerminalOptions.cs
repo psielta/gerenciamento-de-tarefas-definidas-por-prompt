@@ -8,7 +8,7 @@ public sealed class TerminalOptions
     public string DefaultShell { get; set; } = "pwsh.exe";
     public int MaxSessionsPerPrompt { get; set; } = 8;
     public int MaxTotalSessions { get; set; } = 32;
-    public int OrphanTimeoutSeconds { get; set; } = 120;
+    public int OrphanTimeoutSeconds { get; set; } = 3600;
     public int OutputFlushMilliseconds { get; set; } = 25;
     public int MaxOutputChunkBytes { get; set; } = 8 * 1024;
     public int MaxInputBytes { get; set; } = 64 * 1024;

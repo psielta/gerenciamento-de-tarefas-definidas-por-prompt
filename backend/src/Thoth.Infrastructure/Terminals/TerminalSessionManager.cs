@@ -362,7 +362,7 @@ public sealed class TerminalSessionManager(
 
     private async Task ReapOrphansAsync(PeriodicTimer reaper, CancellationToken stoppingToken)
     {
-        var timeout = TimeSpan.FromSeconds(Math.Max(_options.OrphanTimeoutSeconds, 30));
+        var timeout = TimeSpan.FromSeconds(Math.Max(_options.OrphanTimeoutSeconds, 10));
 
         while (await reaper.WaitForNextTickAsync(stoppingToken))
         {
@@ -507,6 +507,8 @@ public sealed class TerminalSessionManager(
                 {
                     break;
                 }
+
+                session.LastActivityUtc = DateTimeOffset.UtcNow;
 
                 lock (session.Gate)
                 {
