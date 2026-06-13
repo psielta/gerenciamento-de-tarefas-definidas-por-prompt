@@ -13,6 +13,8 @@ const TERMINAL_FONT_FAMILY =
 type TerminalViewProps = {
   sessionId: string
   active: boolean
+  fontSize: number
+  onZoom?: (delta: number) => void
   onSessionExit?: (sessionId: string, exitCode: number) => void
 }
 
@@ -33,9 +35,13 @@ function scheduleTerminalFit(
   })
 }
 
-export function TerminalView({ sessionId, active, onSessionExit }: TerminalViewProps) {
+export function TerminalView({ sessionId, active, fontSize, onZoom, onSessionExit }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const terminalRef = useRef<{ term: Terminal; fitAddon: FitAddon } | null>(null)
+  const onZoomRef = useRef(onZoom)
+  const activeRef = useRef(active)
+  onZoomRef.current = onZoom
+  activeRef.current = active
   const {
     joinTerminal,
     leaveTerminal,
@@ -57,7 +63,7 @@ export function TerminalView({ sessionId, active, onSessionExit }: TerminalViewP
       scrollback: 10_000,
       smoothScrollDuration: 0,
       fontFamily: TERMINAL_FONT_FAMILY,
-      fontSize: 14,
+      fontSize,
       lineHeight: 1.3,
       theme: {
         background: '#0f1117',
@@ -98,8 +104,12 @@ export function TerminalView({ sessionId, active, onSessionExit }: TerminalViewP
 
     const onWheel = (event: WheelEvent) => {
       event.stopPropagation()
+      if ((event.ctrlKey || event.metaKey) && activeRef.current && onZoomRef.current) {
+        event.preventDefault()
+        onZoomRef.current(event.deltaY < 0 ? 1 : -1)
+      }
     }
-    container.addEventListener('wheel', onWheel, { passive: true })
+    container.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
       container.removeEventListener('wheel', onWheel)
@@ -121,6 +131,18 @@ export function TerminalView({ sessionId, active, onSessionExit }: TerminalViewP
     subscribeTerminalExit,
     subscribeTerminalOutput,
   ])
+
+  useEffect(() => {
+    const terminal = terminalRef.current
+    if (!terminal) {
+      return
+    }
+
+    terminal.term.options.fontSize = fontSize
+    scheduleTerminalFit(terminal.fitAddon, terminal.term, (cols, rows) => {
+      resizeTerminal(sessionId, cols, rows)
+    })
+  }, [fontSize, resizeTerminal, sessionId])
 
   useEffect(() => {
     const container = containerRef.current

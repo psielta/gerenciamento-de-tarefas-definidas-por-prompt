@@ -1,11 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Terminal as TerminalIcon, X } from 'lucide-react'
+import { Plus, Terminal as TerminalIcon, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { closeTerminal, createTerminal, listTerminals } from '@/api/terminals'
 import { queryKeys } from '@/api/query-keys'
 import { Button } from '@/components/ui/button'
 import { getErrorMessage } from '@/api/client'
+import { useLocalStorage } from '@/hooks/use-local-storage'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  TERMINAL_FONT_SIZE_DEFAULT,
+  TERMINAL_FONT_SIZE_STORAGE_KEY,
+  clampTerminalFontSize,
+} from './terminal-font-size'
 import { TerminalView } from './terminal-view'
 
 type TerminalsPanelProps = {
@@ -15,6 +22,18 @@ type TerminalsPanelProps = {
 export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
   const queryClient = useQueryClient()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [storedFontSize, setStoredFontSize] = useLocalStorage(
+    TERMINAL_FONT_SIZE_STORAGE_KEY,
+    String(TERMINAL_FONT_SIZE_DEFAULT),
+  )
+  const fontSize = clampTerminalFontSize(Number.parseInt(storedFontSize, 10))
+
+  const adjustFontSize = useCallback(
+    (delta: number) => {
+      setStoredFontSize(String(clampTerminalFontSize(fontSize + delta)))
+    },
+    [fontSize, setStoredFontSize],
+  )
 
   const terminalsQuery = useQuery({
     queryKey: queryKeys.terminals.forPrompt(promptId),
@@ -108,11 +127,53 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
 
       {sessions.length > 0 ? (
         <div className="relative h-[min(70vh,640px)] w-full overflow-hidden rounded-md border border-border bg-[#0f1117]">
+          <div
+            role="group"
+            aria-label="Zoom do terminal"
+            className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-border bg-card/95 p-0.5 shadow-sm backdrop-blur-sm"
+          >
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              title="Diminuir fonte"
+              aria-label="Diminuir fonte do terminal"
+              onClick={() => adjustFontSize(-1)}
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </Button>
+            <button
+              type="button"
+              title="Restaurar tamanho padrao da fonte"
+              aria-label="Restaurar tamanho padrao da fonte do terminal"
+              className={cn(
+                'rounded px-1.5 py-0.5 font-mono text-[0.65rem] tabular-nums text-muted-foreground transition-colors',
+                'hover:bg-secondary hover:text-foreground',
+              )}
+              onClick={() => setStoredFontSize(String(TERMINAL_FONT_SIZE_DEFAULT))}
+            >
+              {fontSize}px
+            </button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              title="Aumentar fonte (Ctrl+scroll no terminal tambem aplica zoom)"
+              aria-label="Aumentar fonte do terminal"
+              onClick={() => adjustFontSize(1)}
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           {sessions.map((session) => (
             <TerminalView
               key={session.id}
               sessionId={session.id}
               active={session.id === resolvedActiveId}
+              fontSize={fontSize}
+              onZoom={adjustFontSize}
               onSessionExit={removeSession}
             />
           ))}
