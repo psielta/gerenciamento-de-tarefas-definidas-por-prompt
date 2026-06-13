@@ -87,6 +87,7 @@ describe('TerminalsPanel', () => {
     await waitFor(() => {
       expect(createTerminal).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', { agentLaunch: 'Codex' })
     })
+    expect(await screen.findByRole('button', { name: /^Codex$/i })).toBeInTheDocument()
   })
 
   it('lists restored sessions and closes one', async () => {

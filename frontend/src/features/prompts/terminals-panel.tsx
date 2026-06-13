@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Terminal as TerminalIcon, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { Plus, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { closeTerminal, createTerminal, listTerminals } from '@/api/terminals'
 import { queryKeys } from '@/api/query-keys'
@@ -15,7 +15,12 @@ import {
 } from './terminal-font-size'
 import type { TerminalAgentLaunch } from '@/api/schemas'
 import { TerminalAgentMenu } from './terminal-agent-menu'
+import { defaultPreferenceForAgent } from './terminal-tab-preferences'
+import { TerminalSwitcher } from './terminal-switcher'
+import { TerminalTabButton } from './terminal-tab-button'
 import { TerminalView } from './terminal-view'
+import { useTerminalSwitcher } from './use-terminal-switcher'
+import { useTerminalTabPreferences } from './use-terminal-tab-preferences'
 
 type TerminalsPanelProps = {
   promptId: string
@@ -43,6 +48,11 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
   })
 
   const sessions = useMemo(() => terminalsQuery.data ?? [], [terminalsQuery.data])
+  const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions])
+  const { preferences, setSessionPreference, removeSessionPreference } = useTerminalTabPreferences(
+    promptId,
+    sessionIds,
+  )
 
   const resolvedActiveId = useMemo(() => {
     if (activeSessionId && sessions.some((session) => session.id === activeSessionId)) {
@@ -54,6 +64,23 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === resolvedActiveId) ?? null,
     [resolvedActiveId, sessions],
+  )
+
+  const { switcherOpen, highlightedSessionId } = useTerminalSwitcher({
+    enabled: sessions.length > 0,
+    sessionIds,
+    activeSessionId: resolvedActiveId,
+    onSelectSession: setActiveSessionId,
+  })
+
+  const switcherItems = useMemo(
+    () =>
+      sessions.map((session, index) => ({
+        sessionId: session.id,
+        index,
+        preference: preferences[session.id],
+      })),
+    [preferences, sessions],
   )
 
   const handleCreateSuccess = useCallback(
@@ -69,7 +96,12 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
 
   const createMutation = useMutation({
     mutationFn: (agentLaunch?: TerminalAgentLaunch) => createTerminal(promptId, { agentLaunch }),
-    onSuccess: handleCreateSuccess,
+    onSuccess: (session, agentLaunch) => {
+      handleCreateSuccess(session)
+      if (agentLaunch) {
+        setSessionPreference(session.id, defaultPreferenceForAgent(agentLaunch))
+      }
+    },
     onError: (error) => toast.error(getErrorMessage(error)),
   })
 
@@ -78,22 +110,18 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
       queryClient.setQueryData(queryKeys.terminals.forPrompt(promptId), (current: typeof sessions | undefined) =>
         (current ?? []).filter((session) => session.id !== sessionId),
       )
+      removeSessionPreference(sessionId)
       if (resolvedActiveId === sessionId) {
         setActiveSessionId(null)
       }
     },
-    [promptId, queryClient, resolvedActiveId],
+    [promptId, queryClient, removeSessionPreference, resolvedActiveId],
   )
 
   const closeMutation = useMutation({
     mutationFn: (sessionId: string) => closeTerminal(sessionId),
     onSuccess: (_, sessionId) => {
-      queryClient.setQueryData(queryKeys.terminals.forPrompt(promptId), (current: typeof sessions | undefined) =>
-        (current ?? []).filter((session) => session.id !== sessionId),
-      )
-      if (resolvedActiveId === sessionId) {
-        setActiveSessionId(null)
-      }
+      removeSession(sessionId)
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   })
@@ -126,32 +154,23 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
           </span>
         ) : null}
         {sessions.length === 0 ? (
-          <span className="text-sm text-muted-foreground">Nenhum terminal aberto. O diretório inicial é o workspace do prompt.</span>
+          <span className="text-sm text-muted-foreground">
+            Nenhum terminal aberto. O diretório inicial é o workspace do prompt.
+          </span>
         ) : (
           sessions.map((session, index) => {
             const isActive = session.id === resolvedActiveId
             return (
-              <div key={session.id} className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isActive ? 'default' : 'secondary'}
-                  onClick={() => setActiveSessionId(session.id)}
-                >
-                  <TerminalIcon className="h-4 w-4" />
-                  Terminal {index + 1}
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Fechar terminal ${index + 1}`}
-                  onClick={() => closeMutation.mutate(session.id)}
-                  disabled={closeMutation.isPending}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              <TerminalTabButton
+                key={session.id}
+                index={index}
+                isActive={isActive}
+                preference={preferences[session.id]}
+                closeDisabled={closeMutation.isPending}
+                onActivate={() => setActiveSessionId(session.id)}
+                onClose={() => closeMutation.mutate(session.id)}
+                onPreferenceChange={(patch) => setSessionPreference(session.id, patch)}
+              />
             )
           })
         )}
@@ -212,6 +231,10 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
             />
           ))}
         </div>
+      ) : null}
+
+      {switcherOpen && highlightedSessionId ? (
+        <TerminalSwitcher items={switcherItems} highlightedSessionId={highlightedSessionId} />
       ) : null}
     </div>
   )
