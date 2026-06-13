@@ -43,7 +43,7 @@ public sealed class TerminalSessionManagerTests : IDisposable
     public async Task CreateAsync_registers_session_with_descriptor()
     {
         var promptId = Guid.CreateVersion7();
-        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
+        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
 
         descriptor.PromptId.Should().Be(promptId);
         descriptor.Cwd.Should().Be(Path.GetFullPath(_root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -52,10 +52,22 @@ public sealed class TerminalSessionManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAsync_delivers_initial_input_to_pty()
+    {
+        var promptId = Guid.CreateVersion7();
+        var initialInput = "codex --yolo\r"u8.ToArray();
+
+        await _manager.CreateAsync(promptId, _root, string.Empty, initialInput, CancellationToken.None);
+        await Task.Delay(700);
+
+        _ptyFactory.LastWritten.Should().BeEquivalentTo(initialInput);
+    }
+
+    [Fact]
     public async Task WriteInput_routes_bytes_to_pty()
     {
         var promptId = Guid.CreateVersion7();
-        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
+        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
         var input = "echo hi"u8.ToArray();
 
         _manager.WriteInput(descriptor.Id, input);
@@ -71,7 +83,7 @@ public sealed class TerminalSessionManagerTests : IDisposable
         try
         {
             var promptId = Guid.CreateVersion7();
-            var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
+            var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
             await _manager.CloseAsync(descriptor.Id, CancellationToken.None);
             await Task.Delay(200);
 
@@ -88,8 +100,8 @@ public sealed class TerminalSessionManagerTests : IDisposable
     public async Task KillForPromptAsync_removes_all_prompt_sessions()
     {
         var promptId = Guid.CreateVersion7();
-        var first = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
-        var second = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
+        var first = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
+        var second = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
 
         await _manager.KillForPromptAsync(promptId, CancellationToken.None);
 
@@ -103,7 +115,7 @@ public sealed class TerminalSessionManagerTests : IDisposable
     public async Task ReleaseConnection_detaches_without_killing_session()
     {
         var promptId = Guid.CreateVersion7();
-        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, CancellationToken.None);
+        var descriptor = await _manager.CreateAsync(promptId, _root, string.Empty, null, CancellationToken.None);
         _manager.AttachConnection(descriptor.Id, "conn-1");
         _manager.ReleaseConnection("conn-1");
 

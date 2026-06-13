@@ -382,6 +382,7 @@ public sealed class UpdatePromptArchivalTests
             Guid promptId,
             string cwd,
             string shell,
+            byte[]? initialInput,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

@@ -13,6 +13,8 @@ import {
   TERMINAL_FONT_SIZE_STORAGE_KEY,
   clampTerminalFontSize,
 } from './terminal-font-size'
+import type { TerminalAgentLaunch } from '@/api/schemas'
+import { TerminalAgentMenu } from './terminal-agent-menu'
 import { TerminalView } from './terminal-view'
 
 type TerminalsPanelProps = {
@@ -54,15 +56,20 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
     [resolvedActiveId, sessions],
   )
 
-  const createMutation = useMutation({
-    mutationFn: () => createTerminal(promptId),
-    onSuccess: (session) => {
+  const handleCreateSuccess = useCallback(
+    (session: (typeof sessions)[number]) => {
       queryClient.setQueryData(queryKeys.terminals.forPrompt(promptId), (current: typeof sessions | undefined) => [
         ...(current ?? []),
         session,
       ])
       setActiveSessionId(session.id)
     },
+    [promptId, queryClient],
+  )
+
+  const createMutation = useMutation({
+    mutationFn: (agentLaunch?: TerminalAgentLaunch) => createTerminal(promptId, { agentLaunch }),
+    onSuccess: handleCreateSuccess,
     onError: (error) => toast.error(getErrorMessage(error)),
   })
 
@@ -94,10 +101,22 @@ export function TerminalsPanel({ promptId }: TerminalsPanelProps) {
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-          <Plus className="h-4 w-4" />
-          Novo terminal
-        </Button>
+        <div className="inline-flex items-stretch">
+          <Button
+            type="button"
+            size="sm"
+            className="rounded-r-none"
+            onClick={() => createMutation.mutate(undefined)}
+            disabled={createMutation.isPending}
+          >
+            <Plus className="h-4 w-4" />
+            Novo terminal
+          </Button>
+          <TerminalAgentMenu
+            disabled={createMutation.isPending}
+            onSelectAgent={(agent) => createMutation.mutate(agent)}
+          />
+        </div>
         {activeSession ? (
           <span
             className="min-w-0 max-w-full truncate font-mono text-xs text-muted-foreground"

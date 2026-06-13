@@ -10,5 +10,8 @@ public sealed class CreateTerminalSessionValidator : AbstractValidator<CreateTer
         RuleFor(command => command.Shell)
             .MaximumLength(260)
             .When(command => !string.IsNullOrWhiteSpace(command.Shell));
+        RuleFor(command => command.AgentLaunch)
+            .IsInEnum()
+            .When(command => command.AgentLaunch.HasValue);
     }
 }

@@ -60,12 +60,33 @@ describe('TerminalsPanel', () => {
     const user = userEvent.setup()
     renderPanel()
 
-    await user.click(screen.getByRole('button', { name: /novo terminal/i }))
+    await user.click(screen.getByRole('button', { name: /^Novo terminal$/i }))
 
     await waitFor(() => {
-      expect(createTerminal).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111')
+      expect(createTerminal).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', {})
     })
     expect(await screen.findByRole('button', { name: /^Terminal 1$/i })).toBeInTheDocument()
+  })
+
+  it('creates a terminal with the selected agent launch command', async () => {
+    listTerminals.mockResolvedValue([])
+    createTerminal.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      promptId: '11111111-1111-4111-8111-111111111111',
+      shell: 'powershell.exe',
+      cwd: 'C:/repo',
+      createdAtUtc: '2026-06-13T12:00:00Z',
+    })
+
+    const user = userEvent.setup()
+    renderPanel()
+
+    await user.click(screen.getByRole('button', { name: /abrir terminal com agente/i }))
+    await user.click(screen.getByRole('menuitem', { name: /codex/i }))
+
+    await waitFor(() => {
+      expect(createTerminal).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111', { agentLaunch: 'Codex' })
+    })
   })
 
   it('lists restored sessions and closes one', async () => {

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Thoth.Application.Common.Interfaces;
 using Thoth.Application.Common.Models;
+using Thoth.Application.Features.Terminals;
 using Thoth.Application.Features.Terminals.Commands.CreateTerminalSession;
 using Thoth.Domain.Prompts;
 using Thoth.Domain.Users;
@@ -22,11 +23,30 @@ public sealed class CreateTerminalSessionHandlerTests
         var coordinator = new RecordingTerminalCoordinator();
         var handler = new CreateTerminalSessionHandler(context, new FakeCurrentUser(), coordinator);
 
-        await handler.Handle(new CreateTerminalSessionCommand(childPrompt.Id, null), CancellationToken.None);
+        await handler.Handle(new CreateTerminalSessionCommand(childPrompt.Id, null, null), CancellationToken.None);
 
         coordinator.LastCreate.Should().NotBeNull();
         coordinator.LastCreate!.Value.PromptId.Should().Be(childPrompt.Id);
         coordinator.LastCreate.Value.Cwd.Should().Be(parentDirectory.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task Handle_passes_agent_launch_command_as_initial_input()
+    {
+        var context = new FakeApplicationDbContext();
+        var directory = SeedWorkingDirectory(context, "D:/repo");
+        var prompt = SeedPrompt(context, directory.Id, parentPromptId: null);
+
+        var coordinator = new RecordingTerminalCoordinator();
+        var handler = new CreateTerminalSessionHandler(context, new FakeCurrentUser(), coordinator);
+
+        await handler.Handle(
+            new CreateTerminalSessionCommand(prompt.Id, null, TerminalAgentLaunch.Claude),
+            CancellationToken.None);
+
+        coordinator.LastCreate.Should().NotBeNull();
+        coordinator.LastCreate!.Value.InitialInput.Should().BeEquivalentTo(
+            "claude --dangerously-skip-permissions --effort max\r"u8.ToArray());
     }
 
     [Fact]
@@ -39,7 +59,7 @@ public sealed class CreateTerminalSessionHandlerTests
         var coordinator = new RecordingTerminalCoordinator();
         var handler = new CreateTerminalSessionHandler(context, new FakeCurrentUser(), coordinator);
 
-        await handler.Handle(new CreateTerminalSessionCommand(prompt.Id, "powershell.exe"), CancellationToken.None);
+        await handler.Handle(new CreateTerminalSessionCommand(prompt.Id, "powershell.exe", null), CancellationToken.None);
 
         coordinator.LastCreate.Should().NotBeNull();
         coordinator.LastCreate!.Value.PromptId.Should().Be(prompt.Id);
@@ -138,15 +158,16 @@ public sealed class CreateTerminalSessionHandlerTests
 
     private sealed class RecordingTerminalCoordinator : ITerminalSessionCoordinator
     {
-        public (Guid PromptId, string Cwd, string Shell)? LastCreate { get; private set; }
+        public (Guid PromptId, string Cwd, string Shell, byte[]? InitialInput)? LastCreate { get; private set; }
 
         public Task<TerminalSessionDescriptor> CreateAsync(
             Guid promptId,
             string cwd,
             string shell,
+            byte[]? initialInput,
             CancellationToken cancellationToken)
         {
-            LastCreate = (promptId, cwd, shell);
+            LastCreate = (promptId, cwd, shell, initialInput);
             return Task.FromResult(new TerminalSessionDescriptor(
                 Guid.CreateVersion7(),
                 promptId,

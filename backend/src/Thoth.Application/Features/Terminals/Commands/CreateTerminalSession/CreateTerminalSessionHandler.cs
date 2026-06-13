@@ -3,6 +3,7 @@ using Thoth.Application.Common.Exceptions;
 using Thoth.Application.Common.Interfaces;
 using Thoth.Application.Common.Models;
 using Thoth.Application.Features.Prompts;
+using Thoth.Application.Features.Terminals;
 using Thoth.Domain.Prompts;
 
 namespace Thoth.Application.Features.Terminals.Commands.CreateTerminalSession;
@@ -25,10 +26,13 @@ public sealed class CreateTerminalSessionHandler(
 
         var directory = ResolveWorkspaceDirectory(context, prompt, currentUser.UserId);
 
+        var initialInput = TerminalAgentLaunchCommands.ResolveInitialInput(request.AgentLaunch);
+
         return await terminalCoordinator.CreateAsync(
             prompt.Id,
             directory.AbsolutePath,
             request.Shell ?? string.Empty,
+            initialInput,
             cancellationToken);
     }
 

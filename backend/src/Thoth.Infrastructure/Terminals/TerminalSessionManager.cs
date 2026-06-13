@@ -30,6 +30,7 @@ public sealed class TerminalSessionManager(
         Guid promptId,
         string cwd,
         string shell,
+        byte[]? initialInput,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -101,6 +102,11 @@ public sealed class TerminalSessionManager(
         }
 
         _ = PumpOutputAsync(session);
+
+        if (initialInput is { Length: > 0 })
+        {
+            _ = DeliverInitialInputAsync(session, initialInput);
+        }
 
         logger.LogInformation(
             "Terminal session {SessionId} created for prompt {PromptId} shell {Shell} cwd {Cwd}",
@@ -367,6 +373,29 @@ public sealed class TerminalSessionManager(
                     KillSession(sessionId, "orphan-reaped");
                 }
             }
+        }
+    }
+
+    private async Task DeliverInitialInputAsync(TerminalSession session, byte[] input)
+    {
+        try
+        {
+            await Task.Delay(500);
+            if (!_sessions.ContainsKey(session.Id))
+            {
+                return;
+            }
+
+            session.LastActivityUtc = DateTimeOffset.UtcNow;
+            session.Pty.WriterStream.Write(input, 0, input.Length);
+            session.Pty.WriterStream.Flush();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Failed to deliver initial input to terminal session {SessionId}",
+                session.Id);
         }
     }
 

@@ -8,6 +8,7 @@ public interface ITerminalSessionCoordinator
         Guid promptId,
         string cwd,
         string shell,
+        byte[]? initialInput,
         CancellationToken cancellationToken);
 
     void WriteInput(Guid sessionId, byte[] input);

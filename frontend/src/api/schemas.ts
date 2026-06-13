@@ -557,6 +557,9 @@ export const diagramSchema = diagramBaseSchema.extend({
 })
 export type Diagram = z.infer<typeof diagramSchema>
 
+export const terminalAgentLaunchSchema = z.enum(['Claude', 'Codex', 'Grok'])
+export type TerminalAgentLaunch = z.infer<typeof terminalAgentLaunchSchema>
+
 export const terminalSessionSchema = z.object({
   id: z.string().uuid(),
   promptId: z.string().uuid(),
