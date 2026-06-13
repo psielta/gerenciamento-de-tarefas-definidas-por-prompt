@@ -33,7 +33,10 @@ export function TerminalSwitcher({ items, highlightedSessionId }: TerminalSwitch
       <div className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-card shadow-2xl">
         <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-medium text-foreground">Alternar terminal</p>
-          <p className="text-xs text-muted-foreground">Segure Ctrl e use Tab para navegar. Solte Ctrl para abrir.</p>
+          <p className="text-xs text-muted-foreground">
+            Segure Ctrl e use Page Down/Up ou setas para navegar. Solte Ctrl para abrir. Com o painel aberto, Tab
+            tambem funciona.
+          </p>
         </div>
 
         <ul ref={listRef} className="max-h-[40vh] overflow-y-auto p-1">
