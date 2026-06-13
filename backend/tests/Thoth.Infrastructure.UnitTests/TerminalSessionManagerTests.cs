@@ -47,6 +47,7 @@ public sealed class TerminalSessionManagerTests : IDisposable
 
         descriptor.PromptId.Should().Be(promptId);
         descriptor.Cwd.Should().Be(Path.GetFullPath(_root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        descriptor.Shell.ToLowerInvariant().Should().EndWith("powershell.exe");
         _manager.ListForPrompt(promptId).Should().ContainSingle(item => item.Id == descriptor.Id);
     }
 

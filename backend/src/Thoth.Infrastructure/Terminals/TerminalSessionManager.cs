@@ -59,12 +59,21 @@ public sealed class TerminalSessionManager(
         EnsureCapacity(promptId);
 
         var sessionId = Guid.CreateVersion7();
-        var pty = await ptyConnectionFactory.CreateAsync(
-            resolvedShell,
-            canonicalCwd,
-            cols: 120,
-            rows: 30,
-            cancellationToken);
+        IPtyConnection pty;
+        try
+        {
+            pty = await ptyConnectionFactory.CreateAsync(
+                resolvedShell,
+                canonicalCwd,
+                cols: 120,
+                rows: 30,
+                cancellationToken);
+        }
+        catch (InvalidOperationException exception) when (exception.InnerException is System.ComponentModel.Win32Exception)
+        {
+            logger.LogWarning(exception, "Failed to start shell {Shell}", resolvedShell);
+            throw new NotFoundException($"Failed to start shell '{resolvedShell}'.");
+        }
 
         var session = new TerminalSession
         {
@@ -601,22 +610,76 @@ public sealed class TerminalSessionManager(
             throw new ForbiddenException("Shell is not allowed.");
         }
 
-        if (File.Exists(candidate))
+        var resolved = TryResolveExecutable(candidate) ?? TryResolveExecutable(fileName);
+        if (resolved is null &&
+            string.Equals(fileName, "pwsh.exe", StringComparison.OrdinalIgnoreCase) &&
+            _options.AllowedShells.Any(allowed =>
+                string.Equals(allowed, "powershell.exe", StringComparison.OrdinalIgnoreCase)))
         {
-            return candidate;
+            resolved = TryResolveExecutable("powershell.exe");
         }
 
+        if (resolved is null)
+        {
+            throw new NotFoundException($"Shell executable '{fileName}' was not found on this machine.");
+        }
+
+        return resolved;
+    }
+
+    private static string? TryResolveExecutable(string candidate)
+    {
+        if (Path.IsPathRooted(candidate))
+        {
+            return File.Exists(candidate) ? Path.GetFullPath(candidate) : null;
+        }
+
+        var fileName = Path.GetFileName(candidate);
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         foreach (var directory in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var fullPath = Path.Combine(directory.Trim(), fileName);
             if (File.Exists(fullPath))
             {
-                return fullPath;
+                return Path.GetFullPath(fullPath);
             }
         }
 
-        return fileName;
+        foreach (var wellKnown in GetWellKnownShellPaths(fileName))
+        {
+            if (File.Exists(wellKnown))
+            {
+                return Path.GetFullPath(wellKnown);
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> GetWellKnownShellPaths(string fileName)
+    {
+        if (string.Equals(fileName, "pwsh.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                "PowerShell",
+                "7",
+                "pwsh.exe");
+            yield return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                "PowerShell",
+                "7",
+                "pwsh.exe");
+        }
+
+        if (string.Equals(fileName, "powershell.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+        }
     }
 
     private static void KillProcessTree(int processId)
