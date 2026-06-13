@@ -132,6 +132,7 @@ export const queryKeys = {
   },
   terminals: {
     all: () => ['terminals', 'all'] as const,
+    generic: () => ['terminals', 'generic'] as const,
     capabilities: () => ['terminals', 'capabilities'] as const,
     forPrompt: (promptId: string) => ['terminals', 'prompt', promptId] as const,
   },

@@ -45,10 +45,11 @@ const AGENT_OPTIONS: Array<{
 
 type TerminalAgentMenuProps = {
   disabled?: boolean
+  hidePlan?: boolean
   onSelectAgent: (agent: TerminalAgentLaunch) => void
 }
 
-export function TerminalAgentMenu({ disabled, onSelectAgent }: TerminalAgentMenuProps) {
+export function TerminalAgentMenu({ disabled, hidePlan, onSelectAgent }: TerminalAgentMenuProps) {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -126,7 +127,7 @@ export function TerminalAgentMenu({ disabled, onSelectAgent }: TerminalAgentMenu
               className="fixed z-50 grid w-72 gap-1 rounded-md border border-border bg-card p-1 shadow-xl"
               style={{ left: menuPosition.left, top: menuPosition.top }}
             >
-              {AGENT_OPTIONS.map((option) => {
+              {AGENT_OPTIONS.filter((option) => !(hidePlan && option.id === 'ClaudePlan')).map((option) => {
                 const Icon = option.icon
                 return (
                   <button

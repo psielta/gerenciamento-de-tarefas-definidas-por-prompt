@@ -1,5 +1,6 @@
 import { api } from './client'
 import {
+  genericTerminalSessionSchema,
   terminalAgentLaunchSchema,
   terminalCapabilitiesSchema,
   terminalGroupSchema,
@@ -23,6 +24,11 @@ export async function listAllTerminals() {
   return z.array(terminalGroupSchema).parse(data)
 }
 
+export async function listGenericTerminals() {
+  const data = await api.get('terminals/generic').json<unknown>()
+  return z.array(genericTerminalSessionSchema).parse(data)
+}
+
 type CreateTerminalOptions = {
   shell?: string
   agentLaunch?: TerminalAgentLaunch
@@ -39,6 +45,19 @@ export async function createTerminal(promptId: string, options: CreateTerminalOp
 
   const data = await api.post(`prompts/${promptId}/terminals`, { json: payload }).json<unknown>()
   return terminalSessionSchema.parse(data)
+}
+
+export async function createGenericTerminal(options: CreateTerminalOptions = {}) {
+  const payload: { shell?: string; agentLaunch?: TerminalAgentLaunch } = {}
+  if (options.shell) {
+    payload.shell = options.shell
+  }
+  if (options.agentLaunch) {
+    payload.agentLaunch = terminalAgentLaunchSchema.parse(options.agentLaunch)
+  }
+
+  const data = await api.post('terminals/generic', { json: payload }).json<unknown>()
+  return genericTerminalSessionSchema.parse(data)
 }
 
 export async function closeTerminal(sessionId: string) {

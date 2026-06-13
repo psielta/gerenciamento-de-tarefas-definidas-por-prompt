@@ -594,6 +594,12 @@ export const terminalSessionSchema = z.object({
 })
 export type TerminalSession = z.infer<typeof terminalSessionSchema>
 
+// Generic (promptless) terminals carry a null promptId.
+export const genericTerminalSessionSchema = terminalSessionSchema.extend({
+  promptId: z.string().uuid().nullable(),
+})
+export type GenericTerminalSession = z.infer<typeof genericTerminalSessionSchema>
+
 export const terminalCapabilitiesSchema = z.object({
   enabled: z.boolean(),
 })

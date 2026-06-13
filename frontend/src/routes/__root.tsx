@@ -3,6 +3,7 @@ import { ThemeToggle } from '@/components/theme/theme-toggle'
 import { ThothLogo } from '@/components/thoth-logo'
 import { UsageIndicator } from '@/features/agent-usage/usage-indicator'
 import { GlobalNewPromptButton } from '@/features/prompts/global-new-prompt-button'
+import { GlobalTerminalsButton } from '@/features/terminals/global-terminals-button'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -72,6 +73,7 @@ function RootLayout() {
         <Outlet />
       </main>
       <GlobalNewPromptButton />
+      <GlobalTerminalsButton />
     </div>
   )
 }
