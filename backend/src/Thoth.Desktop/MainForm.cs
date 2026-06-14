@@ -17,6 +17,7 @@ internal sealed class MainForm : Form
     private readonly Panel statusPanel;
     private readonly Label statusLabel;
     private readonly Button retryButton;
+    private readonly ApiProcessHost apiHost = new();
 
     private CancellationTokenSource? startupCancellation;
     private bool loading;
@@ -91,6 +92,7 @@ internal sealed class MainForm : Form
     {
         startupCancellation?.Cancel();
         startupCancellation?.Dispose();
+        apiHost.Stop();
         base.OnFormClosing(e);
     }
 
@@ -113,7 +115,9 @@ internal sealed class MainForm : Form
 
         try
         {
-            await WaitForProductionServiceAsync(startupCancellation.Token);
+            SetStatus("Iniciando Thoth...");
+            await apiHost.EnsureRunningAsync(startupCancellation.Token);
+            await WaitForApiAsync(startupCancellation.Token);
             await EnsureWebViewAsync();
 
             SetStatus("Abrindo Thoth...");
@@ -143,14 +147,14 @@ internal sealed class MainForm : Form
         }
     }
 
-    private async Task WaitForProductionServiceAsync(CancellationToken cancellationToken)
+    private async Task WaitForApiAsync(CancellationToken cancellationToken)
     {
         const int maxAttempts = 60;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SetStatus($"Aguardando o servico de producao em http://localhost:8091... ({attempt}/{maxAttempts})");
+            SetStatus($"Iniciando Thoth em http://localhost:8091... ({attempt}/{maxAttempts})");
 
             try
             {
@@ -175,7 +179,7 @@ internal sealed class MainForm : Form
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
 
-        throw new TimeoutException("O servico de producao nao respondeu dentro do tempo esperado.");
+        throw new TimeoutException("A API do Thoth nao respondeu dentro do tempo esperado.");
     }
 
     private async Task EnsureWebViewAsync()
