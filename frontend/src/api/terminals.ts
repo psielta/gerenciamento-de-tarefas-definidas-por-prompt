@@ -38,15 +38,19 @@ export async function getTerminalOutputHistory(sessionId: string) {
 type CreateTerminalOptions = {
   shell?: string
   agentLaunch?: TerminalAgentLaunch
+  submitPrompt?: boolean
 }
 
 export async function createTerminal(promptId: string, options: CreateTerminalOptions = {}) {
-  const payload: { shell?: string; agentLaunch?: TerminalAgentLaunch } = {}
+  const payload: { shell?: string; agentLaunch?: TerminalAgentLaunch; submitPrompt?: boolean } = {}
   if (options.shell) {
     payload.shell = options.shell
   }
   if (options.agentLaunch) {
     payload.agentLaunch = terminalAgentLaunchSchema.parse(options.agentLaunch)
+  }
+  if (options.submitPrompt) {
+    payload.submitPrompt = true
   }
 
   const data = await api.post(`prompts/${promptId}/terminals`, { json: payload }).json<unknown>()

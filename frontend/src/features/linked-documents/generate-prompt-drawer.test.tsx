@@ -6,6 +6,7 @@ import { setLinkedDocumentPullRequest } from '@/api/linked-documents'
 import { createPrompt } from '@/api/prompts'
 import { renderPromptDraft } from '@/api/prompt-templates'
 import type { PromptTemplate } from '@/api/schemas'
+import { AgentTerminalContext } from '@/features/terminals/agent-terminal-context'
 import { GeneratePromptDrawer } from './generate-prompt-drawer'
 
 vi.mock('@/api/prompt-templates', () => ({
@@ -99,17 +100,22 @@ function renderDrawer(templateOverride = template, initialPullRequestReference?:
       mutations: { retry: false },
     },
   })
+  const requestAgentTerminal = vi.fn()
 
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
-      <GeneratePromptDrawer
-        linkedDocumentId="019e9f6a-94e7-7a23-965d-c8b05c63ee59"
-        template={templateOverride}
-        initialPullRequestReference={initialPullRequestReference}
-        onClose={vi.fn()}
-      />
+      <AgentTerminalContext.Provider value={{ requestAgentTerminal }}>
+        <GeneratePromptDrawer
+          linkedDocumentId="019e9f6a-94e7-7a23-965d-c8b05c63ee59"
+          template={templateOverride}
+          initialPullRequestReference={initialPullRequestReference}
+          onClose={vi.fn()}
+        />
+      </AgentTerminalContext.Provider>
     </QueryClientProvider>,
   )
+
+  return { ...result, requestAgentTerminal }
 }
 
 describe('GeneratePromptDrawer', () => {
@@ -188,6 +194,20 @@ describe('GeneratePromptDrawer', () => {
         sourceTemplateKey: 'ReviewPlan',
         mentions: [],
       })
+    })
+  })
+
+  it('offers an agent terminal for the created child prompt', async () => {
+    const user = userEvent.setup()
+    const { requestAgentTerminal } = renderDrawer()
+
+    await screen.findByDisplayValue('Review plan: plan.md')
+    await user.click(screen.getByRole('button', { name: /^Criar filho$/ }))
+
+    await waitFor(() => {
+      expect(requestAgentTerminal).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '019e9f6a-a5c7-78b8-9683-69966d7ecdbc' }),
+      )
     })
   })
 

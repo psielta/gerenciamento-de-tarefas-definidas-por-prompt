@@ -22,6 +22,7 @@ import {
   type PromptFormValues,
 } from '@/features/prompts/constants'
 import { PromptEditor } from '@/features/prompts/prompt-editor'
+import { useOptionalAgentTerminal } from '@/features/terminals/use-agent-terminal'
 
 type GeneratePromptDrawerProps = {
   linkedDocumentId: string
@@ -42,6 +43,7 @@ export function GeneratePromptDrawer({
   initialPullRequestReference,
 }: GeneratePromptDrawerProps) {
   const queryClient = useQueryClient()
+  const agentTerminal = useOptionalAgentTerminal()
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [contentOverride, setContentOverride] = useState<string | null>(null)
   const [editorMentions, setEditorMentions] = useState<FileMention[] | null>(null)
@@ -174,6 +176,8 @@ export function GeneratePromptDrawer({
       } else {
         toast.success('Prompt filho criado.')
       }
+      // Oferece abrir um terminal com um agente ja executando o filho recem-criado.
+      agentTerminal?.requestAgentTerminal(prompt)
       onClose()
     },
     onError: (error) => toast.error(getErrorMessage(error)),

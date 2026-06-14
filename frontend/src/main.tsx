@@ -8,6 +8,7 @@ import { ThemedToaster } from '@/components/theme/themed-toaster'
 import { queryClient } from '@/query-client'
 import { FileViewerProvider } from '@/features/files/file-viewer-provider'
 import { GitHistoryProvider } from '@/features/files/git-history-provider'
+import { AgentTerminalProvider } from '@/features/terminals/agent-terminal-provider'
 import { PromptHubProvider } from '@/realtime/prompt-hub'
 import { router } from '@/router'
 import '@fontsource-variable/geist'
@@ -21,8 +22,10 @@ createRoot(document.getElementById('root')!).render(
         <PromptHubProvider>
           <FileViewerProvider>
             <GitHistoryProvider>
-              <RouterProvider router={router} />
-              <ThemedToaster />
+              <AgentTerminalProvider>
+                <RouterProvider router={router} />
+                <ThemedToaster />
+              </AgentTerminalProvider>
             </GitHistoryProvider>
           </FileViewerProvider>
         </PromptHubProvider>
